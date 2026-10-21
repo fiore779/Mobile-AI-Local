@@ -1,0 +1,100 @@
+package com.mobileailocal.data
+
+import androidx.room.ColumnInfo
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.RoomDatabase
+import kotlinx.coroutines.flow.Flow
+
+@Entity(tableName = "conversation")
+data class ConversationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val systemPrompt: String = "",
+    val modelId: String? = null,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "message",
+    foreignKeys = [ForeignKey(
+        entity = ConversationEntity::class,
+        parentColumns = ["id"], childColumns = ["conversationId"],
+        onDelete = ForeignKey.CASCADE,
+    )],
+    indices = [Index("conversationId")],
+)
+data class MessageEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val conversationId: Long,
+    val role: String, // user / assistant / system
+    val content: String,
+    @ColumnInfo(defaultValue = "0") val tokenCount: Int = 0,
+    val createdAt: Long,
+)
+
+@Entity(tableName = "model")
+data class ModelEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val fileName: String,
+    val sizeBytes: Long,
+    val quant: String,
+    val contextLength: Int,
+    val source: String, // download / import
+    val license: String,
+    val installedAt: Long,
+)
+
+@Dao
+interface ChatDao {
+    @Query("SELECT * FROM conversation ORDER BY updatedAt DESC")
+    fun conversations(): Flow<List<ConversationEntity>>
+
+    @Query("SELECT * FROM message WHERE conversationId = :id ORDER BY id")
+    fun messages(id: Long): Flow<List<MessageEntity>>
+
+    @Insert fun insertConversation(c: ConversationEntity): Long
+    @Insert fun insertMessage(m: MessageEntity): Long
+
+    @Query("UPDATE message SET content = :content WHERE id = :id")
+    fun updateMessageContent(id: Long, content: String)
+
+    @Query("UPDATE conversation SET title = :title, updatedAt = :now WHERE id = :id")
+    fun rename(id: Long, title: String, now: Long)
+
+    @Query("UPDATE conversation SET updatedAt = :now WHERE id = :id")
+    fun touch(id: Long, now: Long)
+
+    @Query("DELETE FROM conversation WHERE id = :id")
+    fun deleteConversation(id: Long)
+}
+
+@Dao
+interface ModelDao {
+    @Query("SELECT * FROM model ORDER BY installedAt DESC")
+    fun models(): Flow<List<ModelEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) fun upsert(m: ModelEntity)
+
+    @Query("DELETE FROM model WHERE id = :id")
+    fun delete(id: String)
+}
+
+@Database(
+    entities = [ConversationEntity::class, MessageEntity::class, ModelEntity::class],
+    version = 1,
+    exportSchema = false,
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun chatDao(): ChatDao
+    abstract fun modelDao(): ModelDao
+}
