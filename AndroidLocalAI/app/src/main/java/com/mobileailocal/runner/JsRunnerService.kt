@@ -88,7 +88,7 @@ class JsRunnerService : Service() {
                 handler.postDelayed({ Process.killProcess(Process.myPid()) }, 100)
             }
         }
-        handler.postDelayed(watchdog, request.timeoutMs + JsLimits.WATCHDOG_MARGIN_MS)
+        if (!debugWatchdogDisabled(filesDir))         handler.postDelayed(watchdog, request.timeoutMs + JsLimits.WATCHDOG_MARGIN_MS)
 
         Thread({
             val session = QuickJsSession(workspace)

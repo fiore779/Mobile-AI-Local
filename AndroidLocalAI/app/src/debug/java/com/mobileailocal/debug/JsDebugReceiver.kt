@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 /**
  * 検証専用(debug ビルドのみ。release には入らない)。モデル無しで JS 実行を試すための adb 用の入口:
- *   adb shell am broadcast -a com.mobileailocal.DEBUG_JS --es op enable|disable|run|cancel|status|clear  [--es code '...'] [--es file /path]
+ *   adb shell am broadcast -n com.mobileailocal/com.mobileailocal.debug.JsDebugReceiver -a com.mobileailocal.DEBUG_JS --es op enable|disable|run|cancel|status|clear|nowatchdog|watchdog  [--es code '...'] [--es file /path]
  * 結果は logcat のタグ JSDEBUG に出る。確認ダイアログを通らないので、本番の経路には絶対に置かない。
  */
 class JsDebugReceiver : BroadcastReceiver() {
@@ -33,6 +33,8 @@ class JsDebugReceiver : BroadcastReceiver() {
                         Log.i(TAG, "accepted=$accepted")
                     }
                     "cancel" -> app.jsRunManager.cancel()
+                    "nowatchdog" -> { java.io.File(context.filesDir, "debug_no_watchdog").writeText("1"); Log.i(TAG, "watchdog disabled") }
+                    "watchdog" -> { java.io.File(context.filesDir, "debug_no_watchdog").delete(); Log.i(TAG, "watchdog enabled") }
                     "clear" -> Log.i(TAG, "clear=${app.jsRunManager.clearWorkspace()}")
                     "usage" -> Log.i(TAG, "usage=${app.jsRunManager.workspaceUsage()}")
                     "status" -> Log.i(TAG, "state=${app.jsRunManager.state.value}")

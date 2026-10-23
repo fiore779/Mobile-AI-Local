@@ -116,4 +116,28 @@ class JsValueFormatterTest {
         assertEquals(JsValueFormatter.MAX_CHARS, f("x".repeat(JsValueFormatter.MAX_CHARS * 3))!!.length)
         assertTrue(f(listOf("y".repeat(JsValueFormatter.MAX_CHARS * 3)))!!.length <= JsValueFormatter.MAX_CHARS)
     }
+
+    @Test fun hugeUByteArrayIsCutAtLimit() {
+        val s = f(UByteArray(5_000_000) { 200u })!!
+        assertTrue(s.length <= JsValueFormatter.MAX_CHARS)
+        assertTrue(s.startsWith("[200,200"))
+    }
+
+    @Test fun hugeMapIsCutAtLimitAndIsIteratedLazily() {
+        var visited = 0
+        val map = object : AbstractMap<String, Int>() {
+            override val entries: Set<Map.Entry<String, Int>> = object : AbstractSet<Map.Entry<String, Int>>() {
+                override val size = 3_000_000
+                override fun iterator() = object : Iterator<Map.Entry<String, Int>> {
+                    var i = 0
+                    override fun hasNext() = i < size
+                    override fun next(): Map.Entry<String, Int> { visited++; return java.util.AbstractMap.SimpleEntry("k${i++}", 1) }
+                }
+            }
+        }
+        val s = f(map)!!
+        assertTrue(s.length <= JsValueFormatter.MAX_CHARS)
+        assertTrue(s.startsWith("{\"k0\":1,\"k1\":1"))
+        assertTrue("visited=$visited", visited < 500_000)
+    }
 }

@@ -1,7 +1,9 @@
 buildscript {
     repositories { google(); mavenCentral() }
     dependencies {
-        // AGP 8.13.2 同梱の R8 は Kotlin 2.4 の metadata を読めず警告が出るので、新しい R8 に差し替える
+        // 理由: AGP 8.13.2 同梱の R8 は Kotlin 2.4 の metadata を読めず、release ビルドで警告が約 45 件出る。
+        // 新しい R8(9.5.28)に差し替えると消える。
+        // AGP 9 系に上げるときは、この差し替えを外して(AGP 同梱の R8 で足りるか)確認すること。
         classpath("com.android.tools:r8:9.5.28")
     }
 }

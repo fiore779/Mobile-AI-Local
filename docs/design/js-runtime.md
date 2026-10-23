@@ -44,7 +44,7 @@ AI の返答に含まれる JavaScript のコードブロックを、利用者�
 | P5 | 「AI に渡す」は、結果を整形して**入力欄に入れる**。利用者が編集してから送信する（決定 2026-10-23。自動送信はしない） | JS-09 |
 | P6 | AI が文章を生成している間は「実行」を押せない（メモリ競合を避ける） | JS-07 |
 | P7 | 実行を許す返答は、端末内モデルの返答だけ。v1.1 の API 連携（19 章）の返答では、実行ボタンを出さない（決定 2026-10-23。Play の「実行時に取得するコード」の解釈の不確実さを避けるため） | JS-11 |
-| P8 | `quickjs-kt 1.0.15` が、本体の Kotlin 2.0.21 / AGP 8.7.3 でビルドできる。スパイクは Kotlin 2.4.10 で確認したので**本体では未確認**。実装順の手順 0 で最初に確かめる | JS-15 |
+| P8 | `quickjs-kt 1.0.15` が本体でビルドできる。**確認済み(2026-10-23)**: Kotlin 2.0.21 では不可で、Kotlin 2.4.10 / AGP 8.13.2 / compileSdk 36 へ更新した(13.3) | JS-15 |
 | P9 | 本体は arm64-v8a のみ配布（設計書 2 章）。16KB ページ対応は .so の構造で確認済み、実機は未確認 | JS-13 |
 | P10 | Android 10 以上（本体の minSdk 29）。runner の判定に `Application.getProcessName()`（API 28+）を使ってよい | JS-10 |
 
@@ -204,7 +204,7 @@ class JsRunManager(
      * 空きメモリが MIN_FREE_MEMORY_MB 未満のときは受け付け、Finished(Error, cause=LowMemory) にする。
      */
     fun run(key: BlockKey, code: String): Boolean
-
+    /** 実行中なら中止(→ Finished(Killed, UserCancel))。executor.cancel() に加え、executor.run を走らせている Job も取り消す(接続待ち・送信前でも実行されない。2026-10-23 のレビュー指摘)。Running でなければ何もしない */
     /** 実行中なら中止(→ Finished(Killed, UserCancel))。Running でなければ何もしない */
     fun cancel()
 
@@ -479,7 +479,7 @@ Idle ─────────▶ Running(key) ──────────�
 
 | きっかけ | 動作 |
 |---|---|
-| 実行中に「中止」 | `executor.cancel()` → runner を kill → `Finished(Killed, UserCancel)`。console の途中経過は本体に無いので空（二段目と違い、runner からの返事がないため。表示で「中止したため出力はありません」とは言わず、空欄にする） |
+| 実行中に「中止」 | `executor.cancel()` と、`executor.run` の Job の取り消し(接続待ち・送信前でも実行されない)→ runner を kill → `Finished(Killed, UserCancel)`。console の途中経過は本体に無いので空（二段目と違い、runner からの返事がないため。表示で「中止したため出力はありません」とは言わず、空欄にする） |
 | 実行中にアプリが背景に回る | 実行は続ける（最大 6.5〜7.5 秒で必ず終わる）。結果は `App` が持つ `JsRunManager` に入るので、戻ったとき画面に出る。`InferenceService` のようなフォアグラウンドサービスは使わない |
 | 実行中に Activity が破棄される（回転等） | 状態は `App` にあるので、再作成後も同じ結果カードが出る |
 | 実行中に本体プロセスが死ぬ | runner は接続が外れて `onDestroy` で自分を終わらせる。結果は失われる（P3）。次の起動は Idle |
@@ -538,11 +538,11 @@ Idle ─────────▶ Running(key) ──────────�
 2. 「できること」（`ext_js_can`）と「できないこと」（`ext_js_cannot`）の短い箇条書き（ネットワーク・npm・端末の他のファイルにはアクセスできない）。
 3. 「上限」（`ext_js_limits`）：`JsLimits` の値を引数に整形（時間、メモリ、出力、ファイル）。
 4. 「作業フォルダ」：`ext_js_workspace_usage`（`%1$d` ファイル、`%2$s` 使用量／上限 10MB）、「作業フォルダを空にする」ボタン→確認（`ext_js_clear_confirm`）→ `clearWorkspace()`。実行中は押せない。
-5. 注記：`ext_js_license`（QuickJS = MIT、quickjs-kt = Apache License 2.0。MIT の表記は**上流で未確認**。RESULTS.md 9。配布前に確認）
+5. 注記：`ext_js_license`（QuickJS = MIT、quickjs-kt = Apache License 2.0。原文は上流で確認済み。U14。設定画面のライセンス欄に著作権表示つきで 3 行）
 
 ### 7.5 設定画面の入口
 
-`SettingsScreen` の「ダウンロード」の前に `SectionHeader(settings_extensions)` + クリック可能な 1 行（現在の状態を小さく「オン／オフ」と表示）。ライセンス欄（`LicenseRow`）に `QuickJS` と `quickjs-kt` を追加（`LicenseRow("QuickJS (via quickjs-kt)", "MIT License / Apache License 2.0")` の形。MIT の確認が取れるまで文言を仮置きとして未決事項に載せる）。
+`SettingsScreen` の「ダウンロード」の前に `SectionHeader(settings_extensions)` + クリック可能な 1 行（現在の状態を小さく「オン／オフ」と表示）。ライセンス欄（`LicenseRow`）に `QuickJS`・`quickjs-kt`・`c-vector` の 3 行を著作権表示つきで追加（U14 で原文を確認済み。ライブラリ名と表記は固有名なので固定文字列）。
 
 ### 7.6 画面遷移（`AppRoot` の変更）
 
@@ -626,7 +626,7 @@ Idle ─────────▶ Running(key) ──────────�
 | 10 | fs | 書く→読む→一覧→削除。`../x`、`/etc/hosts`、`a\\b` が `EPERM`/`EINVAL` で `try/catch` できる。2MB の文字列 → `EFBIG`。101 ファイル → `ENOSPC`。`adb run-as` で作業フォルダ内に外向きのリンクを作って `list/read/write/remove` が `EPERM`、次の実行の開始時に `sanitize` で消える | JS-04, 15 |
 | 11 | ネットワーク | `typeof fetch`、`typeof require`、`import("fs")` | JS-03 |
 | 12 | 状態の非継続 | 1 回目に `globalThis.x=1`、2 回目に `typeof x` → `undefined`。ファイルは残る | JS-03 |
-| 13 | 固まり | 検証用ビルド限定の `__block`（Thread.sleep）を使い、二段目（約 6.5 秒）で Timeout/WatchdogTimeout。watchdog を無効にした検証用ビルドで三段目（約 7.5 秒、ClientTimeout）。いずれも次の実行が成功。**検証用の関数は release に入れない（`BuildConfig.DEBUG` かつ別 sourceSet〔src/debug〕。adb 用の入口 `JsDebugReceiver` も debug のみで、`android:permission=DUMP` を付けて adb shell からだけ使える。暗黙の intent では届かないので `am broadcast -n com.mobileailocal/com.mobileailocal.debug.JsDebugReceiver -a com.mobileailocal.DEBUG_JS --es op ...` と component を指定する）。release の確認手順：`aapt2 dump xmltree` または `apkanalyzer manifest print` で `JsDebugReceiver` が無いこと、`apkanalyzer dex packages` で `com.mobileailocal.debug` が無いこと** | JS-10 |
+| 13 | 固まり | 検証用ビルド限定の `__block`（Thread.sleep）を使い、二段目（約 6.5 秒）で Timeout/WatchdogTimeout。watchdog を無効にした検証用ビルドで三段目（約 7.5 秒、ClientTimeout）。いずれも次の実行が成功。**検証用の関数は release に入れない（`BuildConfig.DEBUG` かつ別 sourceSet〔src/debug〕。adb 用の入口 `JsDebugReceiver` も debug のみで、`android:permission=DUMP` を付けて adb shell からだけ使える。三段目の検証用に `op=nowatchdog`(files/debug_no_watchdog を作り runner の二段目 watchdog を張らない。`op=watchdog` で戻す。2026-10-23 実装・確認済み: ClientTimeout 約 7.8 秒で runner が kill され、次の run が Ok)。暗黙の intent では届かないので `am broadcast -n com.mobileailocal/com.mobileailocal.debug.JsDebugReceiver -a com.mobileailocal.DEBUG_JS --es op ...` と component を指定する）。release の確認手順：`aapt2 dump xmltree` または `apkanalyzer manifest print` で `JsDebugReceiver` が無いこと、`apkanalyzer dex packages` で `com.mobileailocal.debug` が無いこと** | JS-10 |
 | 14 | 中止 | `while(true){}` の実行中に「中止」→ Killed。直後の実行が成功 | JS-14 |
 | 15 | 背景化 | 実行中にホームへ → 戻ると結果が出ている。回転でも同様 | JS-14 |
 | 16 | プロセス死 | `adb shell am kill`/`kill -9`（runner の pid）→ Crashed。次の実行が成功 | JS-10, 14 |
@@ -718,7 +718,7 @@ Idle ─────────▶ Running(key) ──────────�
 
 ### 13.1 依存
 
-`implementation("io.github.dokar3:quickjs-kt:1.0.15")`。本体の ABI フィルタ（arm64 のみ。エミュレーター時は `-Pabis=x86_64`）に従う。ライセンス：quickjs-kt は Apache-2.0（POM）。QuickJS 本体は MIT と認識しているが同梱ファイルでは**未確認**（配布前に上流で確認）。
+`implementation("io.github.dokar3:quickjs-kt:1.0.15")`。本体の ABI フィルタ（arm64 のみ。エミュレーター時は `-Pabis=x86_64`）に従う。ライセンス：quickjs-kt は Apache-2.0（POM）。QuickJS 本体は MIT で、原文は上流で確認済み（U14）。
 
 ### 13.2 compileSdk 36 の問題への対処方針（結果：案 B を採用。13.3 の実施結果を参照。以下は検討時の記録）
 
@@ -734,7 +734,7 @@ quickjs-kt 1.0.1〜1.0.15 の AAR が `minCompileSdk=36` を宣言し、本体�
 
 ### 13.3 Kotlin のバージョンの問題
 
-本体は Kotlin 2.0.21（KSP 2.0.21-1.0.28）。スパイクは Kotlin 2.4.10 で検証した。quickjs-kt 1.0.15 が使う Kotlin のメタデータの版が 2.0.21 の読める範囲かは**未確認**。手順 0 で、`app` に依存を足して `assembleDebug` と `assembleRelease` が通るか確かめる。通らなければ、Kotlin・KSP・Compose プラグインを上げる作業（別の指示書）が先になる。
+本体は元は Kotlin 2.0.21(KSP 2.0.21-1.0.28)だったが、quickjs-kt 1.0.15 が Kotlin 2.4 の metadata を要求するため、手順 0 で更新した(下の実施結果)。以下は更新前の見立て: スパイクは Kotlin 2.4.10 で検証済みで、2.0.21 の本体で読めるかは未確認だった。
 
 **実施結果（2026-10-23。ユーザー判断で案 B を採用）**：案 A の回避（`-Xskip-metadata-version-check`、`check*AarMetadata` の無効化）は使わず、次のとおり更新した。
 
@@ -803,7 +803,8 @@ Strata の指示書には、4 章の型・シグネチャと 5〜7 章の仕様�
 | U7 | 容量計算の全走査が `fs` を大量に呼ぶ JS で遅くならないか | 負荷試験をしていない | 手順 3 の後 |
 | U8 | quickjs-kt（API 36 でビルド）が API 29〜34 の端末でも動くか | スパイクは Android 35 のエミュレーターのみ | 手順 7（AVD で API 29 を作る） |
 | U9 | 実機（arm64、16KB ページ端末）での動作・速度・メモリ | エミュレーター x86_64 だけで検証 | 手順 7（M5 と合わせてもよい） |
-| U14 | QuickJS 本体の MIT 表記の原文 | 同梱ファイルで確認できていない（RESULTS.md 9） | 配布前 |
+| U19 | Room 2.6.1 + KSP 2.3.x(KSP2)の組み合わせ | 公式サポートは未確認(今のところビルド・動作は問題なし)。Room 2.7 以降への更新を検討 | 次の依存更新のとき |
+| U14 | QuickJS 本体の MIT 表記の原文 | **確認済み（2026-10-23）**：QuickJS は bellard/quickjs の MIT（Copyright (c) 2017-2021 Fabrice Bellard、Copyright (c) 2017-2021 Charlie Gordon）、quickjs-kt は Apache-2.0（Copyright 2024 dokar3）、quickjs-kt 同梱の c-vector（eteran/c-vector）は MIT（Copyright (c) 2015 Evan Teran）。設定画面の「オープンソースライセンス」に 3 行で表示 | 完了 |
 | U16 | 空きメモリ 200MB という下限と、「コンテキスト長 / 4 文字」という渡す文字数の予算の妥当性 | 推測値。実機で調整が必要 | 手順 7 |
 | U18 | AI の返答のコードに含まれる双方向制御文字・不可視文字（Trojan Source）を確認ダイアログでどう見せるか | 将来の検討（今回はコードをそのまま全文表示するだけ。2026-10-23 のレビュー指摘） | M6 の前 |
 

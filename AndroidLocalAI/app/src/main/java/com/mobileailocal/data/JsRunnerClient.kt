@@ -23,7 +23,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -186,6 +188,7 @@ class JsRunnerClient(
                 pending.remove(request.id)
                 return@withLock fail(JsRunStatus.Crashed, JsStopCause.ProcessDied)
             }
+            currentCoroutineContext().ensureActive() // 接続待ち中に取り消されていたら送らない
             try {
                 s.send(request.toMessage(inbox))
             } catch (e: Exception) {
@@ -210,6 +213,7 @@ class JsRunnerClient(
             pending.remove(request.id)
             val pid = runnerPid
             if (pid != 0) Process.killProcess(pid)
+            unbindQuiet() // service と runnerPid を残さない(次の run で bind し直す)
             throw e
         } finally {
             exitingIds.remove(request.id)

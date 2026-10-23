@@ -183,8 +183,10 @@ fun SettingsScreen(
         LicenseRow("llama.cpp", "MIT License")
         LicenseRow("AndroidX (Jetpack Compose, Room, DataStore, Navigation)", "Apache License 2.0")
         LicenseRow("Kotlin, kotlinx.coroutines", "Apache License 2.0")
-        // quickjs-kt は Apache 2.0。QuickJS 本体の MIT 確認は未完了(文言は仮)
-        LicenseRow("QuickJS (via quickjs-kt)", "MIT License / Apache License 2.0")
+        // 著作権表示は上流の原文で確認済み(2026-10-23)
+        LicenseRow("QuickJS (bellard/quickjs)", "MIT License\nCopyright (c) 2017-2021 Fabrice Bellard\nCopyright (c) 2017-2021 Charlie Gordon")
+        LicenseRow("quickjs-kt (dokar3)", "Apache License 2.0\nCopyright 2024 dokar3")
+        LicenseRow("c-vector (eteran/c-vector, bundled with quickjs-kt)", "MIT License\nCopyright (c) 2015 Evan Teran")
         Text(
             stringResource(R.string.licenses_models_note),
             style = MaterialTheme.typography.bodySmall,

@@ -70,7 +70,7 @@ object JsValueFormatter {
 
     /** JSON の配列(Map は (キー, 値) の組)として出せるものの要素列。対象でなければ null。 */
     private fun elements(v: Any): Iterable<Any?>? = when (v) {
-        is Map<*, *> -> v.entries.map { it.key.toString() to it.value }
+        is Map<*, *> -> v.entries.asSequence().map { it.key.toString() to it.value }.asIterable()
         is Iterable<*> -> v
         is Array<*> -> v.asIterable()
         is IntArray -> v.asIterable()
@@ -80,10 +80,10 @@ object JsValueFormatter {
         is FloatArray -> v.asIterable()
         is DoubleArray -> v.asIterable()
         is BooleanArray -> v.asIterable()
-        is UByteArray -> v.map { it.toInt() }
-        is UShortArray -> v.map { it.toUInt() }
-        is UIntArray -> v.map { it.toLong() }
-        is ULongArray -> v.map { it }
+        is UByteArray -> v.asSequence().map { it.toInt() }.asIterable()
+        is UShortArray -> v.asSequence().map { it.toUInt() }.asIterable()
+        is UIntArray -> v.asSequence().map { it.toLong() }.asIterable()
+        is ULongArray -> v.asSequence().asIterable()
         else -> null
     }
 
