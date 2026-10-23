@@ -41,6 +41,9 @@ enum class Dest(val route: String, val label: Int, val icon: Int) {
     Settings("settings", R.string.nav_settings, R.drawable.ic_nav_settings),
 }
 
+// 設定画面の下に開く拡張機能画面(下部ナビには出さない)
+private const val EXTENSIONS_ROUTE = "settings/extensions"
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun AppRoot() {
@@ -55,10 +58,27 @@ fun AppRoot() {
         val nav = rememberNavController()
         val current by nav.currentBackStackEntryAsState()
         val chatVm: ChatViewModel = viewModel() // アクティビティ単位で共有し、履歴から開けるようにする
-        val dest = Dest.entries.firstOrNull { it.route == current?.destination?.route } ?: Dest.Chat
+        val route = current?.destination?.route
+        val onExtensions = route == EXTENSIONS_ROUTE
+        val dest = Dest.entries.firstOrNull { it.route == route }
+            ?: if (onExtensions) Dest.Settings else Dest.Chat
         Scaffold(topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (dest == Dest.Chat) R.string.app_name else dest.label)) },
+                title = {
+                    Text(
+                        stringResource(
+                            if (onExtensions) R.string.settings_extensions
+                            else if (dest == Dest.Chat) R.string.app_name
+                            else dest.label
+                        )
+                    )
+                },
+                navigationIcon = {
+                    // material-icons の依存が無いので矢印は文字で出す
+                    if (onExtensions) {
+                        IconButton(onClick = { nav.popBackStack() }) { Text("←") }
+                    }
+                },
                 actions = {
                     if (dest == Dest.Chat) {
                         IconButton(onClick = { chatVm.newConversation() }) {
@@ -70,9 +90,14 @@ fun AppRoot() {
         }, bottomBar = {
             NavigationBar {
                 Dest.entries.forEach { d ->
+                    val selected = route == d.route || (d == Dest.Settings && onExtensions)
                     NavigationBarItem(
-                        selected = current?.destination?.route == d.route,
-                        onClick = { nav.navigate(d.route) { launchSingleTop = true } },
+                        selected = selected,
+                        onClick = {
+                            // 拡張機能画面で「設定」を押したら、設定画面へ戻る(ナビし直さない)
+                            if (d == Dest.Settings && onExtensions) nav.popBackStack()
+                            else nav.navigate(d.route) { launchSingleTop = true }
+                        },
                         icon = { Icon(painterResource(d.icon), contentDescription = null) },
                         label = { Text(stringResource(d.label)) },
                     )
@@ -92,7 +117,10 @@ fun AppRoot() {
                     })
                 }
                 composable(Dest.Models.route) { ModelsScreen() }
-                composable(Dest.Settings.route) { SettingsScreen() }
+                composable(Dest.Settings.route) {
+                    SettingsScreen(onOpenExtensions = { nav.navigate(EXTENSIONS_ROUTE) { launchSingleTop = true } })
+                }
+                composable(EXTENSIONS_ROUTE) { ExtensionsScreen() }
             }
         }
     }

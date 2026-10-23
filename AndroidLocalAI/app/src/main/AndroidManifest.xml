@@ -24,6 +24,10 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="On-device LLM text generation that must keep running while the app is in the background" />
         </service>
+        <service
+            android:name=".runner.JsRunnerService"
+            android:process=":runner"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

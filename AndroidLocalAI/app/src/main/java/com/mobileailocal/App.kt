@@ -1,5 +1,6 @@
 package com.mobileailocal
 
+import android.app.ActivityManager
 import android.app.Application
 import android.util.Log
 import com.mobileailocal.data.localizedString
@@ -14,7 +15,11 @@ import androidx.room.Room
 import com.mobileailocal.data.AppDatabase
 import com.mobileailocal.data.DeviceMonitor
 import com.mobileailocal.data.DownloadTracker
+import com.mobileailocal.data.JsRunManager
+import com.mobileailocal.data.JsRunnerClient
+import com.mobileailocal.data.JsWorkspace
 import com.mobileailocal.data.ModelRepository
+import java.io.File
 import com.mobileailocal.data.SettingsRepository
 import com.mobileailocal.domain.LlamaCppEngine
 import com.mobileailocal.domain.InferenceEngine
@@ -22,7 +27,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -38,6 +45,7 @@ class App : Application() {
     lateinit var models: ModelRepository; private set
     lateinit var downloads: DownloadTracker; private set
     lateinit var deviceMonitor: DeviceMonitor; private set
+    lateinit var jsRunManager: JsRunManager; private set
 
     // 想定外の例外でアプリごと落ちないようにする(ログに残す)
     private val scope = CoroutineScope(
@@ -67,12 +75,28 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // :runner プロセス(JavaScript 実行)では、Room・llama.cpp・ダウンロードなどを何も作らない
+        if (Application.getProcessName() != packageName) return
         db = Room.databaseBuilder(this, AppDatabase::class.java, "app.db").build()
         settings = SettingsRepository(this)
         engine = LlamaCppEngine()
         models = ModelRepository(this, db.modelDao())
         downloads = DownloadTracker(this, models, settings)
         deviceMonitor = DeviceMonitor(this)
+        // 実行の受け付け可否に使う最新の設定値(実行のたびに DataStore を同期で読まないため)
+        val jsEnabledState = settings.settings.map { it.jsEnabled }.stateIn(ioScope, SharingStarted.Eagerly, false)
+        jsRunManager = JsRunManager(
+            workspace = JsWorkspace(File(filesDir, "js-workspace")),
+            executor = JsRunnerClient(this, ioScope),
+            jsEnabled = { jsEnabledState.value },
+            scope = ioScope,
+            freeMemoryMb = {
+                val mi = ActivityManager.MemoryInfo()
+                (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(mi)
+                // 空きを取れない場合は実行を許可する(拒否する根拠が無い)
+                if (mi.availMem > 0) mi.availMem / (1024 * 1024) else Long.MAX_VALUE
+            },
+        )
         // コンテキスト長・スレッド数は読み込み時に決まるので、設定が変わったらモデルを読み直す
         scope.launch {
             settings.settings.map { it.params.contextLength to it.params.threads }

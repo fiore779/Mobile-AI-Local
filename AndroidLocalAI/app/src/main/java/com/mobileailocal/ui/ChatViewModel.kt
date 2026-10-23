@@ -12,7 +12,11 @@ import com.mobileailocal.data.DeviceStatus
 import com.mobileailocal.data.ConversationEntity
 import com.mobileailocal.data.MessageEntity
 import com.mobileailocal.data.ModelEntity
+import com.mobileailocal.domain.BlockKey
 import com.mobileailocal.domain.ChatMessage
+import com.mobileailocal.domain.JsHandoff
+import com.mobileailocal.domain.JsRunResult
+import com.mobileailocal.domain.JsRunState
 import com.mobileailocal.domain.Prompts
 import com.mobileailocal.domain.Role
 import com.mobileailocal.domain.ThinkingParser
@@ -24,7 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
@@ -82,7 +88,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
         job = viewModelScope.launch {
             finalSave?.join()
-            val params = a.settings.settings.first().params
+            val appSettings = a.settings.settings.first()
+            val params = appSettings.params
             val now = System.currentTimeMillis()
             val cid = _state.value.conversationId ?: withContext(Dispatchers.IO) {
                 dao.insertConversation(
@@ -104,7 +111,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 error = null,
             )
             // モデルへ渡す会話: 先頭にシステムプロンプト、過去の回答は思考過程を除いて回答だけ
-            val system = _state.value.systemPrompt.ifBlank { Prompts.DEFAULT_SYSTEM }
+            val baseSystem = _state.value.systemPrompt.ifBlank { Prompts.DEFAULT_SYSTEM }
+            // 拡張機能(JavaScript 実行)が有効なら、使える API の短い説明を足す(設計書 4.6)
+            val system = if (appSettings.jsEnabled) baseSystem + "\n\n" + Prompts.JS_ADDENDUM else baseSystem
             val forModel = listOf(ChatMessage(Role.System, system)) +
                 history.map { if (it.role == Role.Assistant) it.copy(content = ThinkingParser.answerOf(it.content)) else it }
 
@@ -149,9 +158,31 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stop() { job?.cancel() }
 
+    // ---------------- JavaScript 実行(拡張機能。設計書 6) ----------------
+
+    /** 拡張機能が有効か。無効のときは「実行」ボタンを出さない。 */
+    val jsEnabled: StateFlow<Boolean> = a.settings.settings.map { it.jsEnabled }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** 実行の状態(App が持つので、画面の再作成や背景化をまたいで残る)。 */
+    val jsState: StateFlow<JsRunState> = a.jsRunManager.state
+
+    /** 確認ダイアログで「実行」が押されたコードを実行する。受け付けたら true。 */
+    fun runJs(key: BlockKey, code: String): Boolean = a.jsRunManager.run(key, code)
+    fun cancelJs() = a.jsRunManager.cancel()
+    fun dismissJs() = a.jsRunManager.dismiss()
+
+    /** 「AI に渡す」用の本文。入力欄に入れるだけで、送信はしない(決定 2026-10-23)。second は切り詰めがあったか。 */
+    suspend fun handoffText(result: JsRunResult): Pair<String, Boolean> {
+        val budget = JsHandoff.budgetChars(a.settings.settings.first().params.contextLength)
+        return JsHandoff.format(result, budget)
+    }
+
     /** 履歴から会話を開く。生成の後始末(最終保存・サービス停止)が終わってから切り替える。 */
     fun open(conversationId: Long) {
         switching = true // 切り替えの途中に send されて、開いた会話を上書きしないようにする
+        a.jsRunManager.cancelAndClear() // 実行中の JavaScript と結果カードは会話に属さないので捨てる
         val running = job
         running?.cancel()
         viewModelScope.launch {
@@ -174,6 +205,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun newConversation() {
         switching = true
+        a.jsRunManager.cancelAndClear()
         val running = job
         running?.cancel()
         viewModelScope.launch {

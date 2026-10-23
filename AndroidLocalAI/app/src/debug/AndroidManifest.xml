@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- 検証専用(debug のみ)。モデル無しで JS 実行を試す adb の入口 -->
+        <receiver
+            android:name="com.mobileailocal.debug.JsDebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.mobileailocal.DEBUG_JS" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

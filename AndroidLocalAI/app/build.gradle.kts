@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -9,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.mobileailocal"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.mobileailocal"
@@ -51,7 +52,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+
     buildFeatures { compose = true; buildConfig = true }
     ndkVersion = "27.2.12479018"
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
@@ -71,9 +72,11 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("io.github.dokar3:quickjs-kt:1.0.15")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
 // 報告先のメールアドレスがプレースホルダーのまま release を作るときは警告する(ビルドは失敗させない)
@@ -86,3 +89,5 @@ gradle.taskGraph.whenReady {
         }
     }
 }
+
+kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }

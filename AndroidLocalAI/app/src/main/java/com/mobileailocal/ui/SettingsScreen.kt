@@ -31,7 +31,10 @@ import kotlin.math.roundToInt
 
 /** 設定画面(指示書 03 を参照)。 */
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+fun SettingsScreen(
+    vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    onOpenExtensions: () -> Unit = {},
+) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val storage by vm.storage.collectAsStateWithLifecycle()
 
@@ -70,6 +73,26 @@ fun SettingsScreen(vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.
 
         SectionHeader(stringResource(R.string.settings_storage))
         Text(stringResource(R.string.settings_storage_value, formatStorage(storage.first), formatStorage(storage.second)))
+
+        SectionHeader(stringResource(R.string.settings_extensions))
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenExtensions() }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.ext_js_title), modifier = Modifier.weight(1f))
+            Text(
+                stringResource(if (settings.jsEnabled) R.string.settings_extensions_on else R.string.settings_extensions_off),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // material-icons の依存が無いので矢印は文字で出す
+            Text(
+                "›",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
 
         SectionHeader(stringResource(R.string.settings_download))
         Row(
@@ -160,6 +183,8 @@ fun SettingsScreen(vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.
         LicenseRow("llama.cpp", "MIT License")
         LicenseRow("AndroidX (Jetpack Compose, Room, DataStore, Navigation)", "Apache License 2.0")
         LicenseRow("Kotlin, kotlinx.coroutines", "Apache License 2.0")
+        // quickjs-kt は Apache 2.0。QuickJS 本体の MIT 確認は未完了(文言は仮)
+        LicenseRow("QuickJS (via quickjs-kt)", "MIT License / Apache License 2.0")
         Text(
             stringResource(R.string.licenses_models_note),
             style = MaterialTheme.typography.bodySmall,

@@ -21,6 +21,8 @@ data class AppSettings(
     val params: GenerationParams = GenerationParams(),
     /** true なら従量制回線(モバイル通信など)ではダウンロードしない。 */
     val wifiOnly: Boolean = true,
+    /** JavaScript 実行(拡張機能)を使うか。既定は無効。 */
+    val jsEnabled: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -34,6 +36,7 @@ class SettingsRepository(private val context: Context) {
         val contextLength = intPreferencesKey("context_length")
         val threads = intPreferencesKey("threads")
         val wifiOnly = booleanPreferencesKey("wifi_only")
+        val jsEnabled = booleanPreferencesKey("js_enabled")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -43,6 +46,7 @@ class SettingsRepository(private val context: Context) {
             language = p[K.language] ?: "system",
             defaultModelId = p[K.model],
             wifiOnly = p[K.wifiOnly] ?: true,
+            jsEnabled = p[K.jsEnabled] ?: false,
             params = GenerationParams(
                 temperature = p[K.temperature] ?: d.temperature,
                 topP = p[K.topP] ?: d.topP,
@@ -56,6 +60,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setTheme(v: String) = context.dataStore.edit { it[K.theme] = v }
     suspend fun setLanguage(v: String) = context.dataStore.edit { it[K.language] = v }
     suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[K.wifiOnly] = v }
+    suspend fun setJsEnabled(v: Boolean) = context.dataStore.edit { it[K.jsEnabled] = v }
     suspend fun setDefaultModel(v: String?) = context.dataStore.edit { p -> set(p, v) }
     suspend fun setParams(v: GenerationParams) = context.dataStore.edit {
         it[K.temperature] = v.temperature
