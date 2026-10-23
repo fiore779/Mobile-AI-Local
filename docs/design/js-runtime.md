@@ -205,7 +205,6 @@ class JsRunManager(
      */
     fun run(key: BlockKey, code: String): Boolean
     /** 実行中なら中止(→ Finished(Killed, UserCancel))。executor.cancel() に加え、executor.run を走らせている Job も取り消す(接続待ち・送信前でも実行されない。2026-10-23 のレビュー指摘)。Running でなければ何もしない */
-    /** 実行中なら中止(→ Finished(Killed, UserCancel))。Running でなければ何もしない */
     fun cancel()
 
     /** 結果カードを閉じる(Finished → Idle)。Running なら何もしない */
@@ -803,10 +802,10 @@ Strata の指示書には、4 章の型・シグネチャと 5〜7 章の仕様�
 | U7 | 容量計算の全走査が `fs` を大量に呼ぶ JS で遅くならないか | 負荷試験をしていない | 手順 3 の後 |
 | U8 | quickjs-kt（API 36 でビルド）が API 29〜34 の端末でも動くか | スパイクは Android 35 のエミュレーターのみ | 手順 7（AVD で API 29 を作る） |
 | U9 | 実機（arm64、16KB ページ端末）での動作・速度・メモリ | エミュレーター x86_64 だけで検証 | 手順 7（M5 と合わせてもよい） |
-| U19 | Room 2.6.1 + KSP 2.3.x(KSP2)の組み合わせ | 公式サポートは未確認(今のところビルド・動作は問題なし)。Room 2.7 以降への更新を検討 | 次の依存更新のとき |
 | U14 | QuickJS 本体の MIT 表記の原文 | **確認済み（2026-10-23）**：QuickJS は bellard/quickjs の MIT（Copyright (c) 2017-2021 Fabrice Bellard、Copyright (c) 2017-2021 Charlie Gordon）、quickjs-kt は Apache-2.0（Copyright 2024 dokar3）、quickjs-kt 同梱の c-vector（eteran/c-vector）は MIT（Copyright (c) 2015 Evan Teran）。設定画面の「オープンソースライセンス」に 3 行で表示 | 完了 |
 | U16 | 空きメモリ 200MB という下限と、「コンテキスト長 / 4 文字」という渡す文字数の予算の妥当性 | 推測値。実機で調整が必要 | 手順 7 |
 | U18 | AI の返答のコードに含まれる双方向制御文字・不可視文字（Trojan Source）を確認ダイアログでどう見せるか | 将来の検討（今回はコードをそのまま全文表示するだけ。2026-10-23 のレビュー指摘） | M6 の前 |
+| U19 | Room 2.6.1 + KSP 2.3.x(KSP2)の組み合わせ | 公式サポートは未確認(今のところビルド・動作は問題なし)。Room 2.7 以降への更新を検討 | 次の依存更新のとき |
 
 ### 15.1 決定済み（決定 2026-10-23）
 
