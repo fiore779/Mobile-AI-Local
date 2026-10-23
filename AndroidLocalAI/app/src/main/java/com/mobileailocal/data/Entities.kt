@@ -62,6 +62,12 @@ interface ChatDao {
     @Query("SELECT * FROM message WHERE conversationId = :id ORDER BY id")
     fun messages(id: Long): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM conversation WHERE id = :id")
+    fun conversation(id: Long): ConversationEntity?
+
+    @Query("UPDATE conversation SET systemPrompt = :prompt WHERE id = :id")
+    fun updateSystemPrompt(id: Long, prompt: String)
+
     @Insert fun insertConversation(c: ConversationEntity): Long
     @Insert fun insertMessage(m: MessageEntity): Long
 
@@ -82,6 +88,9 @@ interface ChatDao {
 interface ModelDao {
     @Query("SELECT * FROM model ORDER BY installedAt DESC")
     fun models(): Flow<List<ModelEntity>>
+
+    @Query("SELECT * FROM model WHERE id = :id")
+    fun byId(id: String): ModelEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) fun upsert(m: ModelEntity)
 

@@ -2,6 +2,7 @@ package com.mobileailocal.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -18,6 +19,8 @@ data class AppSettings(
     val language: String = "system", // system / ja / en / zh-CN / zh-TW
     val defaultModelId: String? = null,
     val params: GenerationParams = GenerationParams(),
+    /** true なら従量制回線(モバイル通信など)ではダウンロードしない。 */
+    val wifiOnly: Boolean = true,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -30,6 +33,7 @@ class SettingsRepository(private val context: Context) {
         val maxTokens = intPreferencesKey("max_tokens")
         val contextLength = intPreferencesKey("context_length")
         val threads = intPreferencesKey("threads")
+        val wifiOnly = booleanPreferencesKey("wifi_only")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -38,6 +42,7 @@ class SettingsRepository(private val context: Context) {
             theme = p[K.theme] ?: "system",
             language = p[K.language] ?: "system",
             defaultModelId = p[K.model],
+            wifiOnly = p[K.wifiOnly] ?: true,
             params = GenerationParams(
                 temperature = p[K.temperature] ?: d.temperature,
                 topP = p[K.topP] ?: d.topP,
@@ -50,6 +55,7 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setTheme(v: String) = context.dataStore.edit { it[K.theme] = v }
     suspend fun setLanguage(v: String) = context.dataStore.edit { it[K.language] = v }
+    suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[K.wifiOnly] = v }
     suspend fun setDefaultModel(v: String?) = context.dataStore.edit { p -> set(p, v) }
     suspend fun setParams(v: GenerationParams) = context.dataStore.edit {
         it[K.temperature] = v.temperature

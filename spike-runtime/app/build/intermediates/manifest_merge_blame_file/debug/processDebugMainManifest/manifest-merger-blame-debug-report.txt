@@ -1,0 +1,51 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.mobileailocal.spike"
+4    android:versionCode="1"
+5    android:versionName="0.1" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="28"
+9        android:targetSdkVersion="35" />
+10
+11    <application
+11-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:3:5-16:19
+12        android:name="com.mobileailocal.spike.SpikeApp"
+12-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:4:9-33
+13        android:allowBackup="false"
+13-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:5:9-36
+14        android:debuggable="true"
+15        android:extractNativeLibs="false"
+16        android:label="Spike Runtime"
+16-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:6:9-38
+17        android:theme="@android:style/Theme.Material.Light" >
+17-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:7:9-60
+18        <activity
+18-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:8:9-13:20
+19            android:name="com.mobileailocal.spike.MainActivity"
+19-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:8:19-47
+20            android:exported="true" >
+20-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:8:48-71
+21            <intent-filter>
+21-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:9:13-12:29
+22                <action android:name="android.intent.action.MAIN" />
+22-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:10:17-69
+22-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:10:25-66
+23
+24                <category android:name="android.intent.category.LAUNCHER" />
+24-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:11:17-77
+24-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:11:27-74
+25            </intent-filter>
+26        </activity>
+27        <!-- 実行専用の別プロセス。ネットワーク等の権限はアプリ全体で何も宣言していない -->
+28        <service
+28-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:15:9-101
+29            android:name="com.mobileailocal.spike.RunnerService"
+29-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:15:18-47
+30            android:exported="false"
+30-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:15:74-98
+31            android:process=":runner" />
+31-->D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\AndroidManifest.xml:15:48-73
+32    </application>
+33
+34</manifest>

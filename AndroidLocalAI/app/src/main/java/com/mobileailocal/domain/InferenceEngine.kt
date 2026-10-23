@@ -11,7 +11,8 @@ data class GenerationParams(
     val topP: Float = 0.9f,
     val maxTokens: Int = 1024,
     val contextLength: Int = 4096,
-    val threads: Int = 4,
+    /** 既定は端末のコア数の半分(性能コアに合わせる目安。2〜6)。設定で変更できる。 */
+    val threads: Int = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 6),
 )
 
 /** 推論エンジンの境界。ローカル(llama.cpp)・外部API・テスト用を差し替えられる。 */

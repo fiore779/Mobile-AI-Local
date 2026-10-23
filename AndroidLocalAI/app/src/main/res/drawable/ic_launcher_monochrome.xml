@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- テーマアイコン用: 吹き出しからきらめきを抜いた1色の形 -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M40,32H68A10,10 0 0 1 78,42V58A10,10 0 0 1 68,68H52L40,80V68A10,10 0 0 1 30,58V42A10,10 0 0 1 40,32ZM54,40L57,47L64,50L57,53L54,60L51,53L44,50L51,47Z" />
+</vector>

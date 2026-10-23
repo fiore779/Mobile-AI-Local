@@ -4,17 +4,29 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileailocal.App
+import com.mobileailocal.InferenceService
+import com.mobileailocal.R
+import com.mobileailocal.data.localizedString
+import com.mobileailocal.data.nativeErrorText
+import com.mobileailocal.data.DeviceStatus
 import com.mobileailocal.data.ConversationEntity
 import com.mobileailocal.data.MessageEntity
+import com.mobileailocal.data.ModelEntity
 import com.mobileailocal.domain.ChatMessage
+import com.mobileailocal.domain.Prompts
 import com.mobileailocal.domain.Role
+import com.mobileailocal.domain.ThinkingParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -23,6 +35,8 @@ data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val generating: Boolean = false,
     val error: String? = null,
+    /** この会話のシステムプロンプト(空なら既定文を使う)。 */
+    val systemPrompt: String = "",
 )
 
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
@@ -31,14 +45,52 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state
     private var job: Job? = null
+    /** 直近の生成の最終保存。切り替えの前に待つ。 */
+    private var finalSave: Job? = null
+    /** 会話の切り替え(履歴を開く・新しい会話)の途中は、送信を受け付けない(メインスレッドからだけ読み書きする)。 */
+    private var switching = false
+
+    /** 導入済みモデル一覧、選択中の id、読み込み進捗(チャット画面のモデル選択用)。 */
+    val models: StateFlow<List<ModelEntity>> =
+        a.models.installed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedModelId: StateFlow<String?> = a.selectedModelId
+    val modelLoading: StateFlow<Float?> = a.modelLoading
+    /** モデルを読み込めなかった理由(選び直すと消える)。 */
+    val modelError: StateFlow<String?> = a.modelError
+
+    /** 端末の状態(メモリ・発熱・生成速度)。画面が見えている間だけ2秒ごとに更新する。 */
+    val deviceStatus: StateFlow<DeviceStatus> = flow {
+        while (true) { emit(a.deviceMonitor.snapshot()); delay(2000) }
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DeviceStatus())
+
+    fun selectModel(id: String?) = a.selectModel(id)
+
+    /** システムプロンプトを設定する。会話がまだ無ければ、最初の送信時に保存される。 */
+    fun setSystemPrompt(text: String) {
+        _state.value = _state.value.copy(systemPrompt = text)
+        val cid = _state.value.conversationId ?: return
+        viewModelScope.launch(Dispatchers.IO) { dao.updateSystemPrompt(cid, text) }
+    }
 
     fun send(text: String) {
-        if (text.isBlank() || _state.value.generating) return
+        if (text.isBlank() || _state.value.generating || switching) return
+        // モデルが無いときは、サービスも空のメッセージも作らずにエラーだけ出す
+        if (!a.engine.isLoaded) {
+            _state.value = _state.value.copy(error = a.localizedString(R.string.chat_no_model_loaded))
+            return
+        }
         job = viewModelScope.launch {
+            finalSave?.join()
             val params = a.settings.settings.first().params
             val now = System.currentTimeMillis()
             val cid = _state.value.conversationId ?: withContext(Dispatchers.IO) {
-                dao.insertConversation(ConversationEntity(title = text.take(30), createdAt = now, updatedAt = now))
+                dao.insertConversation(
+                    ConversationEntity(
+                        title = text.take(30), systemPrompt = _state.value.systemPrompt,
+                        createdAt = now, updatedAt = now,
+                    ),
+                )
             }
             val history = _state.value.messages + ChatMessage(Role.User, text)
             val aid = withContext(Dispatchers.IO) {
@@ -51,22 +103,45 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 generating = true,
                 error = null,
             )
+            // モデルへ渡す会話: 先頭にシステムプロンプト、過去の回答は思考過程を除いて回答だけ
+            val system = _state.value.systemPrompt.ifBlank { Prompts.DEFAULT_SYSTEM }
+            val forModel = listOf(ChatMessage(Role.System, system)) +
+                history.map { if (it.role == Role.Assistant) it.copy(content = ThinkingParser.answerOf(it.content)) else it }
+
+            InferenceService.start(a) // 画面を閉じても生成が続くようにする
             val sb = StringBuilder()
+            val startedAt = System.currentTimeMillis()
+            var pieces = 0
+            var lastSaved = startedAt
             try {
-                a.engine.generate(history, params).collect { piece ->
+                a.engine.generate(forModel, params).collect { piece ->
                     sb.append(piece)
+                    pieces++
                     _state.value = _state.value.copy(messages = history + ChatMessage(Role.Assistant, sb.toString()))
+                    // 強制終了されても途中経過が残るように、約2秒ごとに保存する
+                    val t = System.currentTimeMillis()
+                    if (t - lastSaved >= 2000) {
+                        lastSaved = t
+                        val partial = sb.toString()
+                        // その場で順番に保存する(投げっぱなしにしないので、最後の保存が必ず最後に書かれる)
+                        withContext(Dispatchers.IO) { dao.updateMessageContent(aid, partial) }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message ?: e.toString())
+                _state.value = _state.value.copy(error = a.nativeErrorText(e.message))
             } finally {
-                // 停止・失敗でも、そこまでの文章を保存する
-                withContext(NonCancellable + Dispatchers.IO) {
-                    dao.updateMessageContent(aid, sb.toString())
+                // 停止・失敗でも、そこまでの文章を保存する。
+                // 取り消し済みの coroutine から withContext(NonCancellable + IO) で戻ると、戻り際に
+                // JobCancellationException になって後始末が止まるため、保存は App の IO スコープに任せる
+                val finalText = sb.toString()
+                finalSave = a.ioScope.launch {
+                    dao.updateMessageContent(aid, finalText)
                     dao.touch(cid, System.currentTimeMillis())
                 }
+                a.deviceMonitor.recordGeneration(pieces, System.currentTimeMillis() - startedAt)
+                InferenceService.stop(a)
                 _state.value = _state.value.copy(generating = false)
             }
         }
@@ -74,8 +149,40 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stop() { job?.cancel() }
 
+    /** 履歴から会話を開く。生成の後始末(最終保存・サービス停止)が終わってから切り替える。 */
+    fun open(conversationId: Long) {
+        switching = true // 切り替えの途中に send されて、開いた会話を上書きしないようにする
+        val running = job
+        running?.cancel()
+        viewModelScope.launch {
+            try {
+                running?.join()
+                finalSave?.join()
+                val (conv, rows) = withContext(Dispatchers.IO) {
+                    dao.conversation(conversationId) to dao.messages(conversationId).first()
+                }
+                _state.value = ChatUiState(
+                    conversationId = conversationId,
+                    messages = rows.map { ChatMessage(Role.entries.first { r -> r.name.equals(it.role, true) }, it.content) },
+                    systemPrompt = conv?.systemPrompt.orEmpty(),
+                )
+            } finally {
+                switching = false
+            }
+        }
+    }
+
     fun newConversation() {
-        job?.cancel()
-        _state.value = ChatUiState()
+        switching = true
+        val running = job
+        running?.cancel()
+        viewModelScope.launch {
+            try {
+                running?.join()
+                _state.value = ChatUiState()
+            } finally {
+                switching = false
+            }
+        }
     }
 }

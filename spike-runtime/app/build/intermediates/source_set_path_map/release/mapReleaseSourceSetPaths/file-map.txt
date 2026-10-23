@@ -1,0 +1,7 @@
+com.mobileailocal.spike.app-pngs-0 D:\localAI\Mobile-AI-Local\spike-runtime\app\build\generated\res\pngs\release
+com.mobileailocal.spike.app-resValues-1 D:\localAI\Mobile-AI-Local\spike-runtime\app\build\generated\res\resValues\release
+com.mobileailocal.spike.app-packageReleaseResources-2 D:\localAI\Mobile-AI-Local\spike-runtime\app\build\intermediates\incremental\release\packageReleaseResources\merged.dir
+com.mobileailocal.spike.app-packageReleaseResources-3 D:\localAI\Mobile-AI-Local\spike-runtime\app\build\intermediates\incremental\release\packageReleaseResources\stripped.dir
+com.mobileailocal.spike.app-release-4 D:\localAI\Mobile-AI-Local\spike-runtime\app\build\intermediates\merged_res\release\mergeReleaseResources
+com.mobileailocal.spike.app-main-5 D:\localAI\Mobile-AI-Local\spike-runtime\app\src\main\res
+com.mobileailocal.spike.app-release-6 D:\localAI\Mobile-AI-Local\spike-runtime\app\src\release\res
