@@ -1,1 +1,0 @@
-D:\localAI\Mobile-AI-Local\AndroidLocalAI\app\build\intermediates\cxx\RelWithDebInfo\2c4s4k16\obj\arm64-v8a

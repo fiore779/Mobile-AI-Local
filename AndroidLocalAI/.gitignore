@@ -8,3 +8,5 @@ keystore.properties
 *.jks
 *.keystore
 .kotlin/
+
+.cxx

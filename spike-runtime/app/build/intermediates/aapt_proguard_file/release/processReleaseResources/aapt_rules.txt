@@ -1,3 +1,0 @@
--keep class com.mobileailocal.spike.MainActivity { <init>(); }
--keep class com.mobileailocal.spike.RunnerService { <init>(); }
--keep class com.mobileailocal.spike.SpikeApp { <init>(); }

@@ -1,1 +1,0 @@
-Couldn't find Python 3.15. See https://chaquo.com/chaquopy/doc/current/android.html#buildpython.
