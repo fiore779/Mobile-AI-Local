@@ -20,6 +20,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 既定は arm64 のみ(公開用)。x86_64 のエミュレーターで試すときは -Pabis=x86_64 を付ける
         ndk { abiFilters += ((findProperty("abis") as String?)?.split(",") ?: listOf("arm64-v8a")) }
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON") } }
@@ -84,6 +85,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("io.github.dokar3:quickjs-kt:1.0.15")
     testImplementation("junit:junit:4.13.2")
+    // 端末・エミュレーターで動く計装テスト(Android Keystore の動作確認用)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // JVM 単体テストでは android.jar の org.json が空実装なので、本物を足す
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")

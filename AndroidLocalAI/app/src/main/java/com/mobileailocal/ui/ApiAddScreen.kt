@@ -156,6 +156,21 @@ fun ApiAddScreen(onDone: () -> Unit, vm: ApiAddViewModel = viewModel()) {
         )
 
         s.formError?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+        // 保存に失敗したときは、原因(例外クラス名とメッセージ)を「詳細」で見せる
+        s.saveErrorDetail?.let { detail ->
+            var open by remember(detail) { mutableStateOf(false) }
+            TextButton(onClick = { open = !open }) {
+                Text(stringResource(if (open) R.string.error_detail_hide else R.string.error_detail_show))
+            }
+            if (open) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
 
         Button(onClick = vm::save, enabled = !s.saving, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.api_save))

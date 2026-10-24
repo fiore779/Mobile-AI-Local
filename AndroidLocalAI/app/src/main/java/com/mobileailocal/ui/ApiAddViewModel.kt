@@ -10,6 +10,7 @@ import com.mobileailocal.data.CloudHttp
 import com.mobileailocal.domain.ApiError
 import com.mobileailocal.domain.ApiErrorClassifier
 import com.mobileailocal.domain.CloudInputs
+import com.mobileailocal.domain.ErrorDescribe
 import com.mobileailocal.domain.CloudIntegration
 import com.mobileailocal.domain.CloudProviders
 import com.mobileailocal.domain.ProviderType
@@ -43,6 +44,8 @@ data class ApiAddState(
     /** 同意の本文に出す接続先ホスト(カスタムのみ)。 */
     val consentHost: String? = null,
     val hasStoredKey: Boolean = false,
+    /** 保存に失敗したときの原因(例外クラス名とメッセージ。キー・パスは含まない)。「詳細」で見せる。 */
+    val saveErrorDetail: String? = null,
 )
 
 /** 「API連携」の追加と編集(設計書 8.2)。編集のときは連携 ID を受け取る。 */
@@ -209,7 +212,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
                 _state.update { it.copy(consentFor = type, consentHost = scope.ifEmpty { null }) }
                 return@launch
             }
-            _state.update { it.copy(saving = true) }
+            _state.update { it.copy(saving = true, saveErrorDetail = null) }
             val now = System.currentTimeMillis()
             val id = s.editingId ?: UUID.randomUUID().toString()
             val models = s.selected.toList()
@@ -224,9 +227,10 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
                 a.cloudRepo.upsert(a.uid(), item)
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // キーの暗号化保存や DB の失敗で落とさない(原因の詳細はログにも出さない)
-                _state.update { it.copy(saving = false, formError = R.string.cloud_form_save_failed) }
+            } catch (e: Exception) {
+                // キーの暗号化保存や DB の失敗で落とさない。原因は画面の「詳細」にだけ出す(キー・パスは伏せる。ログには出さない)
+                val detail = ErrorDescribe.describe(e, listOf(s.key))
+                _state.update { it.copy(saving = false, formError = R.string.cloud_form_save_failed, saveErrorDetail = detail) }
                 return@launch
             }
             a.requestSync() // アカウントへ連携メタデータ(キーを除く)を記録する。オフラインなら次回に回る
