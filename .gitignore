@@ -1,1 +1,5 @@
 dist/*.apk
+
+# Firebase 設定(公開しない)
+google-services.json
+**/google-services.json
