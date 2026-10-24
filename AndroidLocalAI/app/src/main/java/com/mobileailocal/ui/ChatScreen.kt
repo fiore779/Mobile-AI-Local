@@ -1,5 +1,10 @@
 package com.mobileailocal.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,11 +89,13 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
     var reportText by remember { mutableStateOf<String?>(null) }
 
     val visible = state.messages.filterNot { it.role == Role.System }
+    val lastUserIndex = visible.indexOfLast { it.role == Role.User }
     val listState = rememberLazyListState()
 
     // 新しいメッセージ(件数・最後の本文長)が変わったら最下部へ
-    LaunchedEffect(visible.size, visible.lastOrNull()?.content?.length) {
-        if (visible.isNotEmpty()) listState.animateScrollToItem(visible.size - 1)
+    LaunchedEffect(visible.size, visible.lastOrNull()?.content?.length, state.stopNotice) {
+        val count = visible.size + if (state.stopNotice != null) 1 else 0
+        if (count > 0) listState.animateScrollToItem(count - 1)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -181,6 +188,35 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                             onHandoff = onHandoff,
                             onDismissJs = onDismissJs,
                         )
+                        if (isUser) {
+                            // ユーザー吹き出しの下: 「コピー」(すべて)と「再試行」(最後の発言で、生成中でないとき)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(
+                                    onClick = { copyPrompt(context, m.content) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                ) {
+                                    Text(stringResource(R.string.chat_copy), style = MaterialTheme.typography.labelSmall)
+                                }
+                                if (!state.generating && index == lastUserIndex) {
+                                    TextButton(
+                                        onClick = { vm.retry() },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    ) {
+                                        Text(stringResource(R.string.chat_retry), style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (state.stopNotice != null) {
+                    item {
+                        Text(
+                            stringResource(R.string.chat_thermal_stopped),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        )
                     }
                 }
             }
@@ -217,7 +253,7 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                 TextButton(onClick = { vm.stop() }) { Text(stringResource(R.string.chat_stop)) }
             } else {
                 TextButton(
-                    onClick = { vm.send(text); text = ""; handoffTruncated = false },
+                    onClick = { if (vm.send(text)) { text = ""; handoffTruncated = false } },
                     enabled = text.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.chat_send))
@@ -286,6 +322,15 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
     }
 }
 
+/** プロンプトをクリップボードへコピーする。API 32 以下はシステムの確認表示が無いので Toast を出す。 */
+private fun copyPrompt(context: Context, text: String) {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("prompt", text))
+    if (Build.VERSION.SDK_INT <= 32) {
+        Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
+    }
+}
+
 /** 端末状態(メモリ・生成速度・発熱)の1行表示。 */
 @Composable
 private fun DeviceStatusLine(status: DeviceStatus) {
@@ -298,7 +343,9 @@ private fun DeviceStatusLine(status: DeviceStatus) {
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Text(line, style = style, color = muted)
-        if (status.hot) {
+        if (status.thermalBlocked) {
+            Text(stringResource(R.string.chat_thermal_blocked), style = style, color = MaterialTheme.colorScheme.error)
+        } else if (status.hot) {
             Text(stringResource(R.string.chat_hot_warning), style = style, color = MaterialTheme.colorScheme.error)
         }
     }

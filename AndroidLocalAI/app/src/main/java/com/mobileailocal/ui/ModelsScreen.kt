@@ -26,6 +26,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import com.mobileailocal.R
 import com.mobileailocal.data.DownloadState
 import com.mobileailocal.data.ModelEntity
 import com.mobileailocal.data.RemoteFile
+import com.mobileailocal.domain.Fit
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -105,12 +107,7 @@ private fun SearchTab(
         if (state.searching) {
             Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) { CircularProgressIndicator() }
         } else if (state.results.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                Text(
-                    stringResource(R.string.models_search_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            RecommendSection(vm, state.recommend, installed, downloads, Modifier.weight(1f).fillMaxWidth())
         } else {
             LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
                 items(state.results, key = { it.repoId }) { m ->
@@ -154,14 +151,91 @@ private fun SearchTab(
                                     FileRow(
                                         file = f,
                                         download = downloads[f.url],
-                                        alreadyInstalled = installed.any {
-                                            it.fileName == f.repoId.replace('/', '_') + "__" + f.fileName
-                                        },
+                                        alreadyInstalled = installed.any { it.fileName == vm.installedName(f) },
                                         onDownload = { vm.download(f) },
                                         onCancel = { vm.cancelDownload(f) },
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 検索が空のときに出す、端末に合わせたおすすめ。 */
+@Composable
+private fun RecommendSection(
+    vm: ModelsViewModel,
+    rec: RecommendUiState,
+    installed: List<ModelEntity>,
+    downloads: Map<String, DownloadState>,
+    modifier: Modifier,
+) {
+    LaunchedEffect(Unit) { vm.loadRecommendations(false) }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier) {
+        Text(
+            stringResource(R.string.models_recommend_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        )
+        rec.memory?.let { m ->
+            Text(
+                stringResource(
+                    R.string.models_recommend_budget,
+                    formatSize(rec.budgetMb * 1024L * 1024L), formatSize(m.totalMb * 1024L * 1024L), formatSize(m.freeMb * 1024L * 1024L),
+                ),
+                style = MaterialTheme.typography.bodySmall, color = muted,
+                modifier = Modifier.padding(horizontal = 12.dp),
+            )
+            if (rec.nonArm64) {
+                Text(
+                    stringResource(R.string.models_recommend_nonarm),
+                    style = MaterialTheme.typography.bodySmall, color = muted,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+            }
+        }
+        when (rec.phase) {
+            Phase.Idle, Phase.Loading -> Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) { CircularProgressIndicator() }
+            Phase.Error -> Column(Modifier.weight(1f).fillMaxWidth().padding(12.dp)) {
+                Text(
+                    stringResource(R.string.models_recommend_error, rec.error.orEmpty()),
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = { vm.loadRecommendations(force = true) }) {
+                    Text(stringResource(R.string.models_retry))
+                }
+                Text(stringResource(R.string.models_search_empty), color = muted)
+            }
+            Phase.Done -> if (rec.items.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                    Text(stringResource(R.string.models_recommend_none), color = muted, modifier = Modifier.padding(12.dp))
+                }
+            } else {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                    items(rec.items, key = { it.file.url }) { r ->
+                        Column(Modifier.padding(top = 6.dp)) {
+                            Text(
+                                r.model.repoId, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                            )
+                            Text(
+                                stringResource(R.string.models_repo_stats, formatCount(r.model.downloads), formatCount(r.model.likes)),
+                                style = MaterialTheme.typography.bodySmall, color = muted,
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                            )
+                            FileRow(
+                                file = r.file,
+                                download = downloads[r.file.url],
+                                alreadyInstalled = installed.any { it.fileName == vm.installedName(r.file) },
+                                onDownload = { vm.download(r.file) },
+                                onCancel = { vm.cancelDownload(r.file) },
+                                fit = r.fit,
+                            )
                         }
                     }
                 }
@@ -177,6 +251,7 @@ private fun FileRow(
     alreadyInstalled: Boolean,
     onDownload: () -> Unit,
     onCancel: () -> Unit,
+    fit: Fit? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().padding(start = 24.dp, top = 4.dp, end = 12.dp, bottom = 4.dp),
@@ -189,6 +264,13 @@ private fun FileRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (fit != null) {
+                Text(
+                    stringResource(if (fit == Fit.Comfortable) R.string.models_recommend_fit_ok else R.string.models_recommend_fit_tight),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (fit == Fit.Comfortable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                )
+            }
         }
         if (download == null) {
             TextButton(onClick = onDownload, enabled = !alreadyInstalled) {

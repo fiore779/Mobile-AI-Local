@@ -142,4 +142,20 @@
     <string name="js_handoff">Send to AI</string>
     <string name="js_handoff_truncated">The result was long, so only part of it was put in the message box.</string>
     <string name="js_close">Close</string>
+
+    <!-- 発熱での停止 / プロンプトのコピーと再試行 -->
+    <string name="chat_thermal_stopped">Generation was stopped because the device got too hot. The answer so far is kept. Try again after it cools down.</string>
+    <string name="chat_thermal_blocked">The device is too hot to generate right now. Let it cool down, then send again.</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_copied">Copied</string>
+    <string name="chat_retry">Retry</string>
+
+    <!-- 端末に合わせたおすすめモデル -->
+    <string name="models_recommend_title">Recommended for this device</string>
+    <string name="models_recommend_budget">Guide: up to about %1$s (total memory %2$s, free %3$s)</string>
+    <string name="models_recommend_fit_ok">Comfortable</string>
+    <string name="models_recommend_fit_tight">Tight</string>
+    <string name="models_recommend_error">Could not load recommendations: %1$s</string>
+    <string name="models_recommend_none">No models that fit this device were found. Try searching.</string>
+    <string name="models_recommend_nonarm">This device\'s CPU is not a supported configuration, so the guide is only approximate.</string>
 </resources>

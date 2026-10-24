@@ -142,4 +142,20 @@
     <string name="js_handoff">傳給 AI</string>
     <string name="js_handoff_truncated">結果太長，只把一部分填入輸入框。</string>
     <string name="js_close">關閉</string>
+
+    <!-- 発熱での停止 / プロンプトのコピーと再試行 -->
+    <string name="chat_thermal_stopped">裝置溫度過高，已停止生成。已生成的內容會保留。請待裝置降溫後再試。</string>
+    <string name="chat_thermal_blocked">裝置溫度過高，暫時無法生成。請先降溫再傳送。</string>
+    <string name="chat_copy">複製</string>
+    <string name="chat_copied">已複製</string>
+    <string name="chat_retry">重試</string>
+
+    <!-- 端末に合わせたおすすめモデル -->
+    <string name="models_recommend_title">適合此裝置的推薦</string>
+    <string name="models_recommend_budget">參考：約 %1$s 以內（總記憶體 %2$s，可用 %3$s）</string>
+    <string name="models_recommend_fit_ok">較寬裕</string>
+    <string name="models_recommend_fit_tight">勉強</string>
+    <string name="models_recommend_error">無法取得推薦：%1$s</string>
+    <string name="models_recommend_none">找不到適合此裝置的模型。請嘗試搜尋。</string>
+    <string name="models_recommend_nonarm">此裝置的 CPU 不在預期範圍內，參考值僅供參考。</string>
 </resources>

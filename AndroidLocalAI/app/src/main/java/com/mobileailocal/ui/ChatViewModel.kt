@@ -19,7 +19,13 @@ import com.mobileailocal.domain.JsRunResult
 import com.mobileailocal.domain.JsRunState
 import com.mobileailocal.domain.Prompts
 import com.mobileailocal.domain.Role
+import com.mobileailocal.domain.StopArbiter
+import com.mobileailocal.domain.StopReason
+import com.mobileailocal.domain.ThermalPolicy
 import com.mobileailocal.domain.ThinkingParser
+import com.mobileailocal.domain.historyForRetry
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,6 +49,8 @@ data class ChatUiState(
     val error: String? = null,
     /** この会話のシステムプロンプト(空なら既定文を使う)。 */
     val systemPrompt: String = "",
+    /** 直近の生成が止まった理由(チャットに注記として出す)。注記を出すのは Thermal のみ。 */
+    val stopNotice: StopReason? = null,
 )
 
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
@@ -55,6 +63,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private var finalSave: Job? = null
     /** 会話の切り替え(履歴を開く・新しい会話)の途中は、送信を受け付けない(メインスレッドからだけ読み書きする)。 */
     private var switching = false
+    /** 現在の生成の停止理由の判定(生成ごとに作る)。 */
+    private var currentArbiter: StopArbiter? = null
 
     /** 導入済みモデル一覧、選択中の id、読み込み進捗(チャット画面のモデル選択用)。 */
     val models: StateFlow<List<ModelEntity>> =
@@ -79,36 +89,88 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) { dao.updateSystemPrompt(cid, text) }
     }
 
-    fun send(text: String) {
-        if (text.isBlank() || _state.value.generating || switching) return
+    /** 送信する。受け付けたら true(拒否されたら false。画面は true のときだけ入力欄を消す)。 */
+    fun send(text: String): Boolean = generate(text, retry = false)
+
+    /** 最後のユーザー発言で答えを作り直す(直後の回答は置き換える)。受け付けたら true。 */
+    fun retry(): Boolean {
+        val s = _state.value
+        if (s.generating || switching || s.conversationId == null) return false
+        val history = historyForRetry(s.messages) ?: return false
+        if (history.last().content.isBlank()) return false
+        if (!a.engine.isLoaded) {
+            _state.value = s.copy(error = a.localizedString(R.string.chat_no_model_loaded))
+            return false
+        }
+        if (ThermalPolicy.shouldStop(a.deviceMonitor.currentThermalStatus())) {
+            _state.value = s.copy(error = a.localizedString(R.string.chat_thermal_blocked))
+            return false
+        }
+        // 回答が作り直されると同じ位置が別のコードになるので、結果カードは捨てる
+        a.jsRunManager.cancelAndClear()
+        return generate(history.last().content, retry = true)
+    }
+
+    private fun generate(text: String, retry: Boolean): Boolean {
+        if (text.isBlank() || _state.value.generating || switching) return false
         // モデルが無いときは、サービスも空のメッセージも作らずにエラーだけ出す
         if (!a.engine.isLoaded) {
             _state.value = _state.value.copy(error = a.localizedString(R.string.chat_no_model_loaded))
-            return
+            return false
         }
+        // SEVERE 以上の間は、状態もDBも触らずに断る
+        if (ThermalPolicy.shouldStop(a.deviceMonitor.currentThermalStatus())) {
+            _state.value = _state.value.copy(error = a.localizedString(R.string.chat_thermal_blocked))
+            return false
+        }
+        val arbiter = StopArbiter()
+        currentArbiter = arbiter
         job = viewModelScope.launch {
+            val self = coroutineContext.job
             finalSave?.join()
             val appSettings = a.settings.settings.first()
             val params = appSettings.params
             val now = System.currentTimeMillis()
-            val cid = _state.value.conversationId ?: withContext(Dispatchers.IO) {
-                dao.insertConversation(
-                    ConversationEntity(
-                        title = text.take(30), systemPrompt = _state.value.systemPrompt,
-                        createdAt = now, updatedAt = now,
-                    ),
-                )
-            }
-            val history = _state.value.messages + ChatMessage(Role.User, text)
-            val aid = withContext(Dispatchers.IO) {
-                dao.insertMessage(MessageEntity(conversationId = cid, role = "user", content = text, createdAt = now))
-                dao.insertMessage(MessageEntity(conversationId = cid, role = "assistant", content = "", createdAt = now))
+            val cid: Long
+            val history: List<ChatMessage>
+            val aid: Long
+            try {
+                if (retry) {
+                    cid = _state.value.conversationId ?: return@launch
+                    history = historyForRetry(_state.value.messages) ?: return@launch
+                    aid = withContext(Dispatchers.IO) {
+                        val uid = dao.lastUserMessageId(cid) ?: return@withContext -1L
+                        dao.deleteMessagesAfter(cid, uid)
+                        dao.insertMessage(MessageEntity(conversationId = cid, role = "assistant", content = "", createdAt = now))
+                    }
+                    if (aid < 0) return@launch
+                } else {
+                    cid = _state.value.conversationId ?: withContext(Dispatchers.IO) {
+                        dao.insertConversation(
+                            ConversationEntity(
+                                title = text.take(30), systemPrompt = _state.value.systemPrompt,
+                                createdAt = now, updatedAt = now,
+                            ),
+                        )
+                    }
+                    history = _state.value.messages + ChatMessage(Role.User, text)
+                    aid = withContext(Dispatchers.IO) {
+                        dao.insertMessage(MessageEntity(conversationId = cid, role = "user", content = text, createdAt = now))
+                        dao.insertMessage(MessageEntity(conversationId = cid, role = "assistant", content = "", createdAt = now))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+                return@launch
             }
             _state.value = _state.value.copy(
                 conversationId = cid,
                 messages = history + ChatMessage(Role.Assistant, ""),
                 generating = true,
                 error = null,
+                stopNotice = null,
             )
             // モデルへ渡す会話: 先頭にシステムプロンプト、過去の回答は思考過程を除いて回答だけ
             val baseSystem = _state.value.systemPrompt.ifBlank { Prompts.DEFAULT_SYSTEM }
@@ -118,6 +180,18 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 history.map { if (it.role == Role.Assistant) it.copy(content = ThinkingParser.answerOf(it.content)) else it }
 
             InferenceService.start(a) // 画面を閉じても生成が続くようにする
+            // 発熱の監視(launch の子にしない)。SEVERE 以上になったら生成を止める
+            val watcher = viewModelScope.launch {
+                try {
+                    a.deviceMonitor.thermalStatusUpdates().first { ThermalPolicy.shouldStop(it) }
+                    if (arbiter.request(StopReason.Thermal)) self.cancel()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // 監視が使えない端末では、停止しないだけ
+                }
+            }
+            var completed = false
             val sb = StringBuilder()
             val startedAt = System.currentTimeMillis()
             var pieces = 0
@@ -136,11 +210,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         withContext(Dispatchers.IO) { dao.updateMessageContent(aid, partial) }
                     }
                 }
+                completed = true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = a.nativeErrorText(e.message))
             } finally {
+                watcher.cancel()
                 // 停止・失敗でも、そこまでの文章を保存する。
                 // 取り消し済みの coroutine から withContext(NonCancellable + IO) で戻ると、戻り際に
                 // JobCancellationException になって後始末が止まるため、保存は App の IO スコープに任せる
@@ -151,12 +227,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 a.deviceMonitor.recordGeneration(pieces, System.currentTimeMillis() - startedAt)
                 InferenceService.stop(a)
-                _state.value = _state.value.copy(generating = false)
+                val thermalStop = arbiter.reason == StopReason.Thermal && !completed
+                _state.value = _state.value.copy(
+                    generating = false,
+                    stopNotice = if (thermalStop) StopReason.Thermal else null,
+                )
             }
         }
+        return true
     }
 
-    fun stop() { job?.cancel() }
+    fun stop() {
+        currentArbiter?.request(StopReason.User)
+        job?.cancel()
+    }
 
     // ---------------- JavaScript 実行(拡張機能。設計書 6) ----------------
 

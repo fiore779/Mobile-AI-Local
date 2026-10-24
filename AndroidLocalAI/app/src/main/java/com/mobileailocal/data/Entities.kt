@@ -80,6 +80,12 @@ interface ChatDao {
     @Query("UPDATE conversation SET updatedAt = :now WHERE id = :id")
     fun touch(id: Long, now: Long)
 
+    @Query("SELECT id FROM message WHERE conversationId = :cid AND role = 'user' ORDER BY id DESC LIMIT 1")
+    fun lastUserMessageId(cid: Long): Long?
+
+    @Query("DELETE FROM message WHERE conversationId = :cid AND id > :id")
+    fun deleteMessagesAfter(cid: Long, id: Long)
+
     @Query("DELETE FROM conversation WHERE id = :id")
     fun deleteConversation(id: Long)
 }

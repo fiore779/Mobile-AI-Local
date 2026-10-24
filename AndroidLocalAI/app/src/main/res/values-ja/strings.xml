@@ -142,4 +142,20 @@
     <string name="js_handoff">AI に渡す</string>
     <string name="js_handoff_truncated">結果が長いため、一部だけ入力欄に入れました。</string>
     <string name="js_close">閉じる</string>
+
+    <!-- 発熱での停止 / プロンプトのコピーと再試行 -->
+    <string name="chat_thermal_stopped">端末の温度が高くなりすぎたため、生成を止めました。ここまでの回答は残してあります。端末が冷めてから、もう一度お試しください。</string>
+    <string name="chat_thermal_blocked">端末の温度が高いため、今は生成できません。少し休ませてから送信してください。</string>
+    <string name="chat_copy">コピー</string>
+    <string name="chat_copied">コピーしました</string>
+    <string name="chat_retry">再試行</string>
+
+    <!-- 端末に合わせたおすすめモデル -->
+    <string name="models_recommend_title">この端末のおすすめ</string>
+    <string name="models_recommend_budget">目安: 約 %1$s まで（メモリ合計 %2$s・空き %3$s）</string>
+    <string name="models_recommend_fit_ok">余裕あり</string>
+    <string name="models_recommend_fit_tight">ぎりぎり</string>
+    <string name="models_recommend_error">おすすめを取得できませんでした: %1$s</string>
+    <string name="models_recommend_none">この端末に入りそうなモデルが見つかりませんでした。検索で探してください。</string>
+    <string name="models_recommend_nonarm">この端末の CPU は想定外の構成のため、目安は参考値です。</string>
 </resources>

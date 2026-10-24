@@ -72,6 +72,25 @@ class ModelRepository(private val context: Context, private val dao: ModelDao) {
         }
     }
 
+    /** 人気の GGUF テキスト生成モデル(取得順=人気順)。失敗は例外。trendingScore が 400 なら downloads でやり直す。 */
+    suspend fun popular(limit: Int = 30): List<RemoteModel> = withContext(Dispatchers.IO) {
+        val base = "https://huggingface.co/api/models?filter=gguf&pipeline_tag=text-generation&direction=-1&limit=$limit"
+        val json = try {
+            httpGet("$base&sort=trendingScore")
+        } catch (e: HttpStatusException) {
+            if (e.code != 400) throw e
+            httpGet("$base&sort=downloads")
+        }
+        val arr = JSONArray(json)
+        List(arr.length()) { i ->
+            val o = arr.getJSONObject(i)
+            RemoteModel(o.getString("id"), o.optLong("downloads"), o.optLong("likes"))
+        }
+    }
+
+    /** 導入名(ModelEntity.fileName と同じ規則)。 */
+    fun installedName(file: RemoteFile): String = file.repoId.replace('/', '_') + "__" + file.fileName
+
     /** リポジトリ内の .gguf ファイル一覧(分割ファイルは除く)。 */
     suspend fun files(repoId: String): List<RemoteFile> = withContext(Dispatchers.IO) {
         val arr = JSONArray(httpGet("https://huggingface.co/api/models/$repoId/tree/main"))
@@ -88,7 +107,7 @@ class ModelRepository(private val context: Context, private val dao: ModelDao) {
      * 進捗は onProgress(取得済みバイト, 全体バイト) で通知。キャンセルは coroutine の取り消しで行う。
      */
     suspend fun download(file: RemoteFile, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
-        val safeName = file.repoId.replace('/', '_') + "__" + file.fileName
+        val safeName = installedName(file)
         val part = File(dir, "$safeName.part")
         val target = File(dir, safeName)
         var done = if (part.exists()) part.length() else 0L
