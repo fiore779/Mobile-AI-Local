@@ -39,6 +39,23 @@ data class MessageEntity(
     val content: String,
     @ColumnInfo(defaultValue = "0") val tokenCount: Int = 0,
     val createdAt: Long,
+    /** どちらが生成したか: "local" / "cloud"。 */
+    @ColumnInfo(defaultValue = "local") val origin: String = "local",
+)
+
+/** 連携メタデータのローカル写し(キーは含まない)。アカウント(uid)ごとに行を持つ。 */
+@Entity(tableName = "cloud_integration", primaryKeys = ["uid", "id"])
+data class CloudIntegrationEntity(
+    val uid: String,
+    val id: String,
+    val type: String, // ProviderType.name
+    val displayName: String,
+    val baseUrl: String,
+    val enabledModelsJson: String,
+    val lastModel: String?,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val syncState: String, // local / synced / deleted
 )
 
 @Entity(tableName = "model")
@@ -77,6 +94,9 @@ interface ChatDao {
     @Query("UPDATE conversation SET title = :title, updatedAt = :now WHERE id = :id")
     fun rename(id: Long, title: String, now: Long)
 
+    @Query("UPDATE conversation SET modelId = :modelId WHERE id = :id")
+    fun updateModelId(id: Long, modelId: String?)
+
     @Query("UPDATE conversation SET updatedAt = :now WHERE id = :id")
     fun touch(id: Long, now: Long)
 
@@ -104,12 +124,33 @@ interface ModelDao {
     fun delete(id: String)
 }
 
+@Dao
+interface CloudIntegrationDao {
+    @Query("SELECT * FROM cloud_integration WHERE uid = :uid AND syncState != 'deleted' ORDER BY createdAt")
+    fun integrations(uid: String): Flow<List<CloudIntegrationEntity>>
+
+    @Query("SELECT * FROM cloud_integration WHERE uid = :uid AND syncState != 'deleted' ORDER BY createdAt")
+    fun list(uid: String): List<CloudIntegrationEntity>
+
+    @Query("SELECT * FROM cloud_integration WHERE uid = :uid AND id = :id")
+    fun byId(uid: String, id: String): CloudIntegrationEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) fun upsert(e: CloudIntegrationEntity)
+
+    @Query("DELETE FROM cloud_integration WHERE uid = :uid AND id = :id")
+    fun delete(uid: String, id: String)
+
+    @Query("DELETE FROM cloud_integration WHERE uid = :uid")
+    fun deleteAll(uid: String)
+}
+
 @Database(
-    entities = [ConversationEntity::class, MessageEntity::class, ModelEntity::class],
-    version = 1,
-    exportSchema = false,
+    entities = [ConversationEntity::class, MessageEntity::class, ModelEntity::class, CloudIntegrationEntity::class],
+    version = 2,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun modelDao(): ModelDao
+    abstract fun cloudIntegrationDao(): CloudIntegrationDao
 }

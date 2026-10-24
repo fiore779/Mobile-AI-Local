@@ -33,7 +33,7 @@ fun Context.nativeErrorText(message: String?): String {
             LoadCause.OutOfMemory -> localizedString(R.string.model_error_hint_memory)
             LoadCause.Corrupt -> localizedString(R.string.model_error_hint_corrupt)
             LoadCause.Unsupported -> localizedString(R.string.model_error_hint_unsupported)
-            null -> if (kind == NativeError.Context) null else localizedString(R.string.model_error_hint_unknown)
+            null -> if (kind == NativeError.Context || detail == null) null else localizedString(R.string.model_error_hint_unknown)
         }
         if (hint != null) summary += " " + hint
     }

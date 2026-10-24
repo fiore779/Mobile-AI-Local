@@ -12,4 +12,11 @@ object Prompts {
         "You can write JavaScript in a ```js code block; the user may run it on the device (QuickJS, no network, no npm).\n" +
             "Available: console.log, setTimeout/sleep(ms), and fs.writeFile(path,text), fs.readFile(path), fs.list(dir), fs.exists(path), fs.remove(path) for text files in a private workspace (relative paths only).\n" +
             "Limits: 5 seconds, small memory. The value of the last expression and console output are returned to you."
+
+    /**
+     * モデルへ渡すシステムプロンプト。拡張機能(JS 実行)が有効でも、クラウドの返答には「実行」を出さないので、
+     * クラウド選択のときは JS の説明を足さない(設計書 6.2-4、R8)。
+     */
+    fun systemFor(base: String, jsEnabled: Boolean, cloud: Boolean): String =
+        if (jsEnabled && !cloud) base + "\n\n" + JS_ADDENDUM else base
 }

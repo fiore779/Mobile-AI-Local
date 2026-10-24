@@ -76,6 +76,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("io.github.dokar3:quickjs-kt:1.0.15")
     testImplementation("junit:junit:4.13.2")
+    // JVM 単体テストでは android.jar の org.json が空実装なので、本物を足す
+    testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
@@ -89,5 +91,8 @@ gradle.taskGraph.whenReady {
         }
     }
 }
+
+// Room のスキーマ(移行の検証用)を app/schemas に出力する
+ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }

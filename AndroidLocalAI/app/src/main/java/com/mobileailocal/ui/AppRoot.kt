@@ -43,6 +43,20 @@ enum class Dest(val route: String, val label: Int, val icon: Int) {
 
 // 設定画面の下に開く拡張機能画面(下部ナビには出さない)
 private const val EXTENSIONS_ROUTE = "settings/extensions"
+private const val API_ROUTE = "settings/api"
+private const val API_DETAIL_ROUTE = "settings/api/{integrationId}" // "new" で追加、連携 ID で編集
+
+/** 設定の下位ルートか(下部ナビの「設定」を強調し、戻る矢印を出す)。 */
+internal fun isSettingsSubRoute(route: String?): Boolean =
+    route == EXTENSIONS_ROUTE || route == API_ROUTE || route?.startsWith("$API_ROUTE/") == true
+
+/** 設定の下位ルートのタイトル(文字列リソース id)。 */
+internal fun settingsSubTitle(route: String?): Int = when {
+    route == EXTENSIONS_ROUTE -> R.string.settings_extensions
+    route == API_ROUTE -> R.string.settings_api
+    route == "$API_ROUTE/new" -> R.string.api_add_title
+    else -> R.string.api_detail_title
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,7 +73,9 @@ fun AppRoot() {
         val current by nav.currentBackStackEntryAsState()
         val chatVm: ChatViewModel = viewModel() // アクティビティ単位で共有し、履歴から開けるようにする
         val route = current?.destination?.route
-        val onExtensions = route == EXTENSIONS_ROUTE
+        val onExtensions = isSettingsSubRoute(route)
+        val app = LocalContext.current.applicationContext as App
+        val pendingConsent by app.pendingConsent.collectAsStateWithLifecycle()
         val dest = Dest.entries.firstOrNull { it.route == route }
             ?: if (onExtensions) Dest.Settings else Dest.Chat
         Scaffold(topBar = {
@@ -67,7 +83,7 @@ fun AppRoot() {
                 title = {
                     Text(
                         stringResource(
-                            if (onExtensions) R.string.settings_extensions
+                            if (onExtensions) settingsSubTitle(route)
                             else if (dest == Dest.Chat) R.string.app_name
                             else dest.label
                         )
@@ -104,12 +120,20 @@ fun AppRoot() {
                 }
             }
         }) { pad ->
+            // モデル選択で同意がまだのクラウドを選んだとき、どの画面からでも確認を出す
+            pendingConsent?.let { p ->
+                CloudConsentDialog(p.providerType, p.scope.ifEmpty { null }, onAccept = app::acceptPendingConsent, onDecline = app::declinePendingConsent)
+            }
             NavHost(
                 nav,
                 startDestination = Dest.Chat.route,
                 modifier = Modifier.padding(pad).consumeWindowInsets(pad).imePadding(),
             ) {
-                composable(Dest.Chat.route) { ChatScreen(chatVm) }
+                composable(Dest.Chat.route) {
+                    ChatScreen(chatVm, onOpenApiSettings = { id ->
+                        nav.navigate(if (id == null) API_ROUTE else "$API_ROUTE/$id") { launchSingleTop = true }
+                    })
+                }
                 composable(Dest.History.route) {
                     HistoryScreen(onOpen = { id ->
                         chatVm.open(id)
@@ -118,9 +142,19 @@ fun AppRoot() {
                 }
                 composable(Dest.Models.route) { ModelsScreen() }
                 composable(Dest.Settings.route) {
-                    SettingsScreen(onOpenExtensions = { nav.navigate(EXTENSIONS_ROUTE) { launchSingleTop = true } })
+                    SettingsScreen(
+                        onOpenExtensions = { nav.navigate(EXTENSIONS_ROUTE) { launchSingleTop = true } },
+                        onOpenApi = { nav.navigate(API_ROUTE) { launchSingleTop = true } },
+                    )
                 }
                 composable(EXTENSIONS_ROUTE) { ExtensionsScreen() }
+                composable(API_ROUTE) {
+                    ApiSettingsScreen(
+                        onAdd = { nav.navigate("$API_ROUTE/new") { launchSingleTop = true } },
+                        onOpen = { id -> nav.navigate("$API_ROUTE/$id") { launchSingleTop = true } },
+                    )
+                }
+                composable(API_DETAIL_ROUTE) { ApiAddScreen(onDone = { nav.popBackStack() }) }
             }
         }
     }

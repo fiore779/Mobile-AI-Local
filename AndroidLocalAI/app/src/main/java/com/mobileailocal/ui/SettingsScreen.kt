@@ -34,6 +34,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onOpenExtensions: () -> Unit = {},
+    onOpenApi: () -> Unit = {},
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val storage by vm.storage.collectAsStateWithLifecycle()
@@ -94,6 +95,27 @@ fun SettingsScreen(
             )
         }
 
+        SectionHeader(stringResource(R.string.settings_api))
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenApi() }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_api_row))
+                Text(
+                    stringResource(R.string.settings_api_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                "›",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+
         SectionHeader(stringResource(R.string.settings_download))
         Row(
             Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -111,6 +133,11 @@ fun SettingsScreen(
         }
 
         SectionHeader(stringResource(R.string.settings_generation))
+        Text(
+            stringResource(R.string.settings_gen_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         ValueSlider(
             name = stringResource(R.string.gen_temperature),
             description = stringResource(R.string.gen_temperature_desc),

@@ -72,6 +72,13 @@ class ModelsViewModel(app: Application) : AndroidViewModel(app) {
     /** ダウンロード中の状態。キーは RemoteFile.url。 */
     val downloads: StateFlow<Map<String, DownloadState>> = tracker.states
 
+    /** クラウド(API連携)の一覧と、選択中のモデル。 */
+    val cloudIntegrations: StateFlow<List<com.mobileailocal.domain.CloudIntegration>> =
+        a.cloudRepo.observe(com.mobileailocal.data.LOCAL_UID)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedModel: StateFlow<com.mobileailocal.domain.ModelSelection?> = a.selectedModel
+    fun selectCloud(ref: com.mobileailocal.domain.CloudModelRef) = a.requestCloudSelect(ref)
+
     /** 既定(チャットで選択中)のモデル id。 */
     val selectedId: StateFlow<String?> = a.selectedModelId
 

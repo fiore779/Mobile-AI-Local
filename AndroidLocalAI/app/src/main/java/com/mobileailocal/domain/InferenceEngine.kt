@@ -4,7 +4,10 @@ import kotlinx.coroutines.flow.Flow
 
 enum class Role { System, User, Assistant }
 
-data class ChatMessage(val role: Role, val content: String)
+/** メッセージを作ったもの。Cloud の返答には「実行」ボタンを出さない。 */
+enum class Origin { Local, Cloud }
+
+data class ChatMessage(val role: Role, val content: String, val origin: Origin = Origin.Local)
 
 data class GenerationParams(
     val temperature: Float = 0.7f,

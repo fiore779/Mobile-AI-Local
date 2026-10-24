@@ -48,6 +48,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobileailocal.R
 import com.mobileailocal.domain.ErrorDetailText
+import com.mobileailocal.domain.ApiError
+import com.mobileailocal.domain.ApiErrorKind
+import com.mobileailocal.domain.CloudIntegration
+import com.mobileailocal.domain.CloudModelRef
+import com.mobileailocal.domain.CloudProviders
+import com.mobileailocal.domain.ModelSelection
+import com.mobileailocal.domain.Origin
+import com.mobileailocal.domain.ProviderType
 import com.mobileailocal.domain.loadingPercent
 import com.mobileailocal.data.DeviceStatus
 import com.mobileailocal.data.ModelEntity
@@ -69,7 +77,11 @@ private data class PendingRun(val key: BlockKey, val code: String)
 
 /** チャット画面(指示書 01 を参照)。 */
 @Composable
-fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+fun ChatScreen(
+    vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    /** 設定の API連携を開く(連携 ID があればその詳細)。 */
+    onOpenApiSettings: (String?) -> Unit = {},
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val models by vm.models.collectAsStateWithLifecycle()
     val selectedModelId by vm.selectedModelId.collectAsStateWithLifecycle()
@@ -78,6 +90,12 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
     val modelError by vm.modelError.collectAsStateWithLifecycle()
     val jsEnabled by vm.jsEnabled.collectAsStateWithLifecycle()
     val jsState by vm.jsState.collectAsStateWithLifecycle()
+    val selection by vm.selectedModel.collectAsStateWithLifecycle()
+    val integrations by vm.cloudIntegrations.collectAsStateWithLifecycle()
+    val warnings by vm.cloudWarnings.collectAsStateWithLifecycle()
+    var menuSignal by remember { mutableStateOf(0) }
+    val cloudSel = selection as? ModelSelection.Cloud
+    val cloudInteg = cloudSel?.let { s -> integrations.firstOrNull { it.id == s.ref.integrationId } }
     var text by rememberSaveable { mutableStateOf("") }
     var showPromptDialog by remember { mutableStateOf(false) }
     // 確認ダイアログ(「実行」を押すとここへ入れて、確定したら実行する)
@@ -103,7 +121,10 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
     }
 
     Column(Modifier.fillMaxSize()) {
-        ModelBar(vm, models, selectedModelId, modelLoading, onEditPrompt = { showPromptDialog = true })
+        ModelBar(
+            vm, models, selectedModelId, modelLoading, selection, integrations, warnings, menuSignal,
+            onEditPrompt = { showPromptDialog = true },
+        )
         modelLoading?.let { progress ->
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -172,7 +193,7 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    stringResource(R.string.chat_ai_generated),
+                                    (if (m.origin == Origin.Cloud) "☁ " else "") + stringResource(R.string.chat_ai_generated),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -233,6 +254,36 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                 }
             }
         }
+        state.cloudError?.let { err ->
+            CloudErrorBlock(
+                err,
+                hasProviderPage = cloudInteg?.let { CloudProviders.of(it.type).keyIssueUrl != null } ?: false,
+                onAction = { action ->
+                    when (action) {
+                        CloudErrorAction.ReEnterKey, CloudErrorAction.OpenSettings -> onOpenApiSettings(cloudSel?.ref?.integrationId)
+                        CloudErrorAction.OpenProviderConsole -> cloudInteg?.let { openProviderConsole(context, it.type) }
+                        CloudErrorAction.Retry -> vm.retry()
+                        CloudErrorAction.ReselectModel, CloudErrorAction.SwitchToLocal -> { vm.dismissCloudError(); menuSignal++ }
+                    }
+                },
+            )
+        }
+        if (state.maxTokensNotice) {
+            Text(
+                stringResource(R.string.cloud_max_tokens_notice),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+        }
+        if (state.trimmedNotice) {
+            Text(
+                stringResource(R.string.cloud_trimmed_notice),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+        }
         state.error?.let { message ->
             val (summary, detail) = ErrorDetailText.split(message)
             ErrorBlock(summary, detail, small = false)
@@ -243,6 +294,14 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                 stringResource(R.string.js_handoff_truncated),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+        }
+        if (cloudSel != null) {
+            Text(
+                "☁ " + stringResource(R.string.cloud_sending_notice, cloudInteg?.displayName ?: ""),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
             )
         }
@@ -262,6 +321,7 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                 TextButton(onClick = { vm.stop() }) { Text(stringResource(R.string.chat_stop)) }
             } else {
                 TextButton(
+                    // 会話の途中でクラウドへ切り替えた最初の送信は、VM が保留して確認ダイアログを出させる
                     onClick = { if (vm.send(text)) { text = ""; handoffTruncated = false } },
                     enabled = text.isNotBlank() && modelLoading == null,
                 ) {
@@ -269,6 +329,24 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                 }
             }
         }
+    }
+
+    state.pendingCloudConfirm?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { vm.cancelPendingSend() },
+            title = { Text(stringResource(R.string.cloud_history_confirm_title)) },
+            text = { Text(stringResource(R.string.cloud_history_confirm_body, cloudInteg?.displayName ?: "")) },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.confirmPendingSend()
+                    // 新しい送信なら入力欄を空にする(再生成では入力欄に触れない)
+                    if (!pending.retry && pending.text == text) { text = ""; handoffTruncated = false }
+                }) { Text(stringResource(R.string.cloud_history_confirm_send)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.cancelPendingSend() }) { Text(stringResource(R.string.common_cancel)) }
+            },
+        )
     }
 
     // システムプロンプト(AI の役割)を編集するダイアログ。開くたびに現在の値から始める
@@ -309,7 +387,8 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
                         ReportIntent.launch(
                             context,
                             it,
-                            models.firstOrNull { m -> m.id == selectedModelId }?.name,
+                            if (cloudSel != null) (cloudInteg?.displayName ?: "") + " / " + cloudSel.ref.model
+                            else models.firstOrNull { m -> m.id == selectedModelId }?.name,
                         )
                     }
                     reportText = null
@@ -374,6 +453,68 @@ private fun ErrorBlock(summary: String, detail: String?, small: Boolean) {
     }
 }
 
+/** クラウドのエラー警告。文言とボタンは種別から決め、提供側の原文は「詳細」を開いたときだけ出す。 */
+@Composable
+private fun CloudErrorBlock(err: ApiError, hasProviderPage: Boolean, onAction: (CloudErrorAction) -> Unit) {
+    val ui = cloudErrorUi(err.kind).let { u ->
+        if (hasProviderPage) u else u.copy(actions = u.actions - CloudErrorAction.OpenProviderConsole)
+    }
+    var open by remember(err) { mutableStateOf(false) }
+    val detail = remember(err) { cloudErrorDetail(err) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Text(stringResource(ui.messageRes), color = MaterialTheme.colorScheme.error)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ui.actions.forEach { a ->
+                TextButton(onClick = { onAction(a) }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text(
+                        stringResource(
+                            when (a) {
+                                CloudErrorAction.ReEnterKey -> R.string.cloud_action_reenter_key
+                                CloudErrorAction.OpenSettings -> R.string.cloud_action_open_settings
+                                CloudErrorAction.OpenProviderConsole -> R.string.cloud_action_open_console
+                                CloudErrorAction.Retry -> R.string.chat_retry
+                                CloudErrorAction.ReselectModel -> R.string.cloud_action_reselect
+                                CloudErrorAction.SwitchToLocal -> R.string.cloud_action_switch_local
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+            if (detail != null) {
+                TextButton(onClick = { open = !open }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                    Text(
+                        stringResource(if (open) R.string.error_detail_hide else R.string.error_detail_show),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+        }
+        if (open && detail != null) {
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 提供元のコンソール(請求ページの入口)をブラウザで開く。固定の請求 URL は持たない。 */
+internal fun openProviderConsole(context: Context, type: ProviderType) {
+    val url = CloudProviders.of(type).keyIssueUrl ?: return
+    openUrl(context, url)
+}
+
+internal fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+    } catch (_: android.content.ActivityNotFoundException) {
+        Toast.makeText(context, context.getString(R.string.cloud_no_browser), Toast.LENGTH_SHORT).show()
+    }
+}
+
 /** プロンプトをクリップボードへコピーする。API 32 以下はシステムの確認表示が無いので Toast を出す。 */
 private fun copyPrompt(context: Context, text: String) {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -410,10 +551,17 @@ private fun ModelBar(
     models: List<ModelEntity>,
     selectedId: String?,
     loading: Float?,
+    selection: ModelSelection?,
+    integrations: List<CloudIntegration>,
+    warnings: Map<String, ApiErrorKind>,
+    openSignal: Int,
     onEditPrompt: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(openSignal) { if (openSignal > 0) expanded = true }
     val selected = models.firstOrNull { it.id == selectedId }
+    val cloudSel = selection as? ModelSelection.Cloud
+    val cloudName = cloudSel?.let { s -> integrations.firstOrNull { it.id == s.ref.integrationId }?.displayName }
 
     Column(Modifier.fillMaxWidth()) {
         Row(
@@ -422,7 +570,10 @@ private fun ModelBar(
         ) {
             Box {
                 TextButton(onClick = { expanded = true }) {
-                    val label = (selected?.name ?: stringResource(R.string.chat_select_model)) + " ▾"
+                    val label = (
+                        if (cloudSel != null) "☁ " + (cloudName ?: "") + " / " + cloudSel.ref.model
+                        else selected?.name ?: stringResource(R.string.chat_select_model)
+                        ) + " ▾"
                     Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -449,7 +600,39 @@ private fun ModelBar(
                             )
                         }
                     }
-                    if (selectedId != null) {
+                    // クラウド(API連携)。連携が無ければ、設定へ誘導する行だけ出す
+                    DropdownMenuItem(
+                        text = { Text("☁ " + stringResource(R.string.cloud_section), style = MaterialTheme.typography.labelMedium) },
+                        onClick = {},
+                        enabled = false,
+                    )
+                    if (integrations.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.cloud_none_hint), style = MaterialTheme.typography.bodySmall) },
+                            onClick = { expanded = false },
+                            enabled = false,
+                        )
+                    }
+                    integrations.forEach { integ ->
+                        val warn = warnings[integ.id] != null
+                        integ.enabledModels.forEach { model ->
+                            val isSel = cloudSel?.ref == CloudModelRef(integ.id, model)
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text((if (isSel) "✓ " else "") + (if (warn) "⚠ " else "") + model)
+                                        Text(
+                                            integ.displayName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                },
+                                onClick = { expanded = false; vm.selectCloud(CloudModelRef(integ.id, model)) },
+                            )
+                        }
+                    }
+                    if (selection != null) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.chat_unload_model)) },
                             onClick = { expanded = false; vm.selectModel(null) },
@@ -554,7 +737,7 @@ private fun Bubble(
                                         CodeBlockView(
                                             lang = segment.lang,
                                             code = segment.code,
-                                            runButton = runButtonState(segment, jsEnabled, generating, jsState),
+                                            runButton = runButtonState(segment, jsEnabled, generating, jsState, m.origin),
                                             onRun = { onRunRequest(key, segment.code) },
                                         )
                                         // このブロックの実行状態をカードで出す(Running / Finished の key と一致するときだけ)
@@ -583,12 +766,15 @@ private fun Bubble(
 }
 
 // コードブロックの「実行」ボタンの状態(設計書 6.1 の規則どおりの順で決める)
-private fun runButtonState(
+internal fun runButtonState(
     segment: MessageSegment.Code,
     jsEnabled: Boolean,
     generating: Boolean,
     jsState: JsRunState,
+    origin: Origin = Origin.Local,
 ): RunButtonState {
+    // クラウドの返答には「実行」を出さない(js-runtime の P7)。メッセージごとに判定する
+    if (origin == Origin.Cloud) return RunButtonState.Hidden
     if (!jsEnabled) return RunButtonState.Hidden
     if (segment.lang !in setOf("js", "javascript")) return RunButtonState.Hidden
     // 生成中の最後の回答は、閉じが来ていないだけなので注記を出さない

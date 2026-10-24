@@ -44,6 +44,9 @@ import com.mobileailocal.data.DownloadState
 import com.mobileailocal.data.ModelEntity
 import com.mobileailocal.data.RemoteFile
 import com.mobileailocal.domain.Fit
+import com.mobileailocal.domain.CloudModelRef
+import com.mobileailocal.domain.ModelSelection
+import androidx.compose.material3.HorizontalDivider
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -307,7 +310,43 @@ private fun InstalledTab(vm: ModelsViewModel, installed: List<ModelEntity>, sele
     // ダイアログは最前面に出すため画面レベルで持つ
     var deleteTarget by remember { mutableStateOf<ModelEntity?>(null) }
 
+    val cloud by vm.cloudIntegrations.collectAsStateWithLifecycle()
+    val selection by vm.selectedModel.collectAsStateWithLifecycle()
+    val cloudSel = selection as? ModelSelection.Cloud
+
     Column(Modifier.fillMaxSize()) {
+        // クラウド(API連携)。選択のみ。追加・削除は設定の「API連携」で行う
+        if (cloud.isNotEmpty()) {
+            Text(
+                "☁ " + stringResource(R.string.cloud_section),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            cloud.forEach { integ ->
+                integ.enabledModels.forEach { model ->
+                    val ref = CloudModelRef(integ.id, model)
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(model)
+                            Text(
+                                integ.displayName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (cloudSel?.ref == ref) {
+                            Text(stringResource(R.string.models_in_use), color = MaterialTheme.colorScheme.primary)
+                        } else {
+                            TextButton(onClick = { vm.selectCloud(ref) }) { Text(stringResource(R.string.models_use)) }
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+        }
         if (installed.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
                 Text(
