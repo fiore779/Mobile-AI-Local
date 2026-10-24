@@ -47,3 +47,30 @@ fun normalizeForCloud(messages: List<ChatMessage>): List<ChatMessage> {
     }
     return out
 }
+
+/**
+ * システム指示(System ロール)を受け付けないモデル向けの整形。System を取り除き、最初の User メッセージの前置きに畳み込む。
+ * 最初のやり取りが Assistant から始まるとき(古い発言を落とした後など)は、システム文だけの User を先頭に足す。
+ * User/Assistant の交互は崩さない(normalizeForCloud の後に呼ぶこと)。
+ */
+fun foldSystemIntoUser(messages: List<ChatMessage>): List<ChatMessage> {
+    val system = messages.filter { it.role == Role.System }.map { it.content }.filter { it.isNotBlank() }
+    if (system.isEmpty()) return messages.filter { it.role != Role.System }
+    val prefix = system.joinToString("\n\n")
+    val rest = messages.filter { it.role != Role.System }
+    val first = rest.firstOrNull()
+    return when {
+        first == null -> listOf(ChatMessage(Role.User, prefix))
+        first.role == Role.User -> listOf(first.copy(content = prefix + "\n\n" + first.content)) + rest.drop(1)
+        else -> listOf(ChatMessage(Role.User, prefix)) + rest
+    }
+}
+
+private val SYSTEM_WORDS = listOf("developer instruction", "system instruction", "system role", "system message", "system prompt")
+private val REJECT_WORDS = listOf("not enabled", "not supported", "unsupported", "not allowed", "does not support", "doesn't support", "invalid")
+
+/** 提供側のエラー文が「システム(developer)指示を受け付けないモデル」を示しているか。 */
+fun rejectsSystemRole(providerMessage: String?): Boolean {
+    val m = providerMessage?.lowercase() ?: return false
+    return SYSTEM_WORDS.any { it in m } && REJECT_WORDS.any { it in m }
+}

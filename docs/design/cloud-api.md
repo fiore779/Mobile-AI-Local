@@ -519,6 +519,7 @@ HTTP 状態を第一に、本文のコードを第二に見る。表の「確認
 | キーが空・空白のみ | 追加画面で「接続テスト」を押せない |
 | 接続テスト：キー有効 | `GET <baseUrl>/models` が 200 なら成功（Anthropic で `/models` が使えない場合は、`max_tokens=1` の 1 回の短い問い合わせ。**この方式は課金が発生する**ため、画面に注意書きを出す。Anthropic の一覧 API の可否は未確認） |
 | 接続テスト：上限・課金の失敗 | 連携は**保存する**（キーは有効で、課金だけが問題のため）。警告を表示し、「あとで使えるようになります」を案内する |
+| モデル一覧に、チャットに使えないモデルが混じる | 接続確認で取得した一覧のうち、**名前**から音声合成・画像・埋め込みなどと分かるものを初期の選択肢から外す（`ModelFilter.isChatModel`）。名前を英数字以外の区切りで分け、`tts` `speech` `audio` `transcribe` `whisper` `realtime` `live` `image` `imagen` `dall` `veo` `sora` `embedding` `embeddings` `embed` `aqa` `moderation` `rerank` のどれかに一致する語を含むものが対象（部分一致ではなく語単位。迷うものは残す）。「すべてのモデルを表示」の切り替えで除外分も見られ、すでに選んだモデルと手入力は常に有効。OpenAI・Anthropic・Gemini・カスタムの一覧に同じ規則を使う。**根拠**：Gemini のネイティブ `models.list` には `supportedGenerationMethods`（`generateContent` など）の項目があることを公式（`ai.google.dev/api/models`）で確認したが、**TTS モデルがこの項目で除外できるかは確認できていない**（未確認。TTS も `generateContent` 系で呼ぶ可能性があるため）。また OpenAI 互換の `/models` にはこの項目が無いので、名前による判定を採用した。実際に利用者が「gemini 3.8 flash lite tts」を選んで 400 になった事例が背景（TTS はチャット用ではない）。 |
 | モデル一覧が長い（数十件以上） | 検索欄を出し、最大 10 件選ぶ。手入力も可 |
 | モデル名の手入力 | 前後の空白を除く。空・200 文字超は拒否。許可する文字は `[A-Za-z0-9._:/@-]` |
 | `baseUrl`（Custom） | **`https://` のみ許可**（確定）。`http://` は、LAN・`localhost` を含め拒否し、「暗号化されない接続は使えません」と表示する（`CloudInputs.checkBaseUrl` → `HttpNotAllowed`）。ユーザー情報（`@`）・クエリ（`?`）・フラグメント（`#`）を含む URL、ホストを読めない URL は `Invalid` で拒否。末尾の `/` は保存時に除く |
@@ -590,6 +591,7 @@ HTTP 状態を第一に、本文のコードを第二に見る。表の「確認
 | 最大トークン | OpenAI 互換：`max_tokens`（新しいモデルは `max_completion_tokens` を要求する場合があり**未確認**。400 で拒否されたらもう一方の名前で 1 回だけ再送する）。Anthropic：`max_tokens`（必須項目）。既定の 1024 は短い場合があるので、`stop_reason == max_tokens` のときの注記（6.4）で案内する。 |
 | コンテキスト長・スレッド数 | **送らない**（ローカル専用。クラウドは 6.2 の文字数による絞りを使う） |
 | 拒否への対応 | 提供側が `temperature` `top_p` を拒否または無視するモデルがある（確認済み：Gemini 4 と 3.6 以降は指定を無視し、将来 400 にする。公式）。`400 InvalidRequest` で本文に `temperature` か `top_p` の語を含むときは、**それらを除いて 1 回だけ再送**し、成功したらその連携・モデルを「サンプリング設定を送らない」としてメモリ上に覚える（`App` の `Set<String>`。永続化しない）。 |
+| システム指示（System ロール） | OpenAI 互換では、システムプロンプトを `role: "system"` のメッセージで送る。**システム（developer）指示を受け付けないモデルがある**：実機で Gemini の OpenAI 互換エンドポイントに Gemma 系のモデルを選んだとき、`400 Developer instruction is not enabled for this model` が返った（利用者の報告。モデル名は未確認）。確認できた公式の事実は次のとおり（2026-10-24）。(1) Gemini の OpenAI 互換のページ（`ai.google.dev/gemini-api/docs/openai`）の例は、すべて Gemini のモデル（`gemini-3.8-flash`）に `role: "system"` を送っている。Gemma への言及はなく、**互換エンドポイントで Gemma が System ロールを受け付けるかは公式から確認できなかった**。(2) Gemma のページ（`ai.google.dev/gemma/docs/core/gemma_on_gemini_api`）には、ネイティブの `generateContent` では `system_instruction` を渡せる例（`gemma-4-26b-a4b-it`）がある。対応：400 で本文に「developer / system instruction」と「not enabled / not supported 等」の語があれば、System を取り除いて最初の User メッセージの前置きに畳み込み（`foldSystemIntoUser`）、**1 回だけ**自動で再送する。成功したら、そのモデルは（アプリのプロセスの間だけ）最初から畳み込む。再送しても失敗したら、既存のエラー表示の「詳細」に提供側の原文が出る。Anthropic は `system` を別項目で送るので対象外。 |
 | 設定画面の表示 | 生成設定の見出しに、「温度・top_p・最大トークンはクラウドにも使われます。コンテキスト長・スレッド数は端末内モデルだけです」を足す（`settings_gen_note`） |
 
 ## 10. 会話履歴・JS 実行機能との整合（R7, R8）

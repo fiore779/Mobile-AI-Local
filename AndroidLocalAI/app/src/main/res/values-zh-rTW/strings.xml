@@ -266,4 +266,5 @@
     <string name="api_signin_err_other">登入或刪除帳號失敗,請重試。</string>
     <string name="api_account_err_recent">基於安全考量,請先登出並重新登入,再次刪除帳號。</string>
     <string name="cloud_form_signin_required">請先使用 Google 登入(設定 > API 連線)。</string>
+    <string name="api_models_show_all">顯示所有模型(包括語音、圖像與嵌入模型)</string>
 </resources>

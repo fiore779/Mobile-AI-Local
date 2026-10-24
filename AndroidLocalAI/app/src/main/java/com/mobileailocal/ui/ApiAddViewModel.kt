@@ -46,6 +46,8 @@ data class ApiAddState(
     val hasStoredKey: Boolean = false,
     /** 保存に失敗したときの原因(例外クラス名とメッセージ。キー・パスは含まない)。「詳細」で見せる。 */
     val saveErrorDetail: String? = null,
+    /** チャット向けでないモデル(音声合成・画像・埋め込みなど)も一覧に出すか。 */
+    val showAllModels: Boolean = false,
 )
 
 /** 「API連携」の追加と編集(設計書 8.2)。編集のときは連携 ID を受け取る。 */
@@ -118,6 +120,8 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
     fun setBaseUrl(v: String) = _state.update { it.copy(baseUrl = v, formError = null) }
     fun setKey(v: String) = _state.update { it.copy(key = CloudInputs.cleanKey(v), formError = null, testOk = false, testError = null) }
     fun setManual(v: String) = _state.update { it.copy(manual = v) }
+
+    fun setShowAllModels(v: Boolean) = _state.update { it.copy(showAllModels = v) }
 
     fun toggleModel(m: String) = _state.update {
         val s = if (m in it.selected) it.selected - m else if (it.selected.size < CloudInputs.MAX_MODELS) it.selected + m else it.selected

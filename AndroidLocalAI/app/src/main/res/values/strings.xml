@@ -266,4 +266,5 @@
     <string name="api_signin_err_other">Sign-in or account deletion failed. Please try again.</string>
     <string name="api_account_err_recent">For security, please sign out, sign in again, and then retry deleting the account.</string>
     <string name="cloud_form_signin_required">Sign in with Google first (Settings > API connections).</string>
+    <string name="api_models_show_all">Show all models (including speech, image and embedding models)</string>
 </resources>

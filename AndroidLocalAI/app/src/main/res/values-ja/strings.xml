@@ -266,4 +266,5 @@
     <string name="api_signin_err_other">サインインまたはアカウントの削除に失敗しました。もう一度お試しください。</string>
     <string name="api_account_err_recent">セキュリティのため、いったんサインアウトして入り直してから、もう一度アカウントを削除してください。</string>
     <string name="cloud_form_signin_required">先に Google でサインインしてください(設定 > API連携)。</string>
+    <string name="api_models_show_all">すべてのモデルを表示(音声合成・画像・埋め込みなどを含む)</string>
 </resources>

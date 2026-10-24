@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobileailocal.R
 import com.mobileailocal.domain.CloudInputs
 import com.mobileailocal.domain.CloudProviders
+import com.mobileailocal.domain.ModelFilter
 import com.mobileailocal.domain.ProviderType
 
 /**
@@ -130,13 +131,28 @@ fun ApiAddScreen(onDone: () -> Unit, vm: ApiAddViewModel = viewModel()) {
         }
 
         Text(stringResource(R.string.api_models), style = MaterialTheme.typography.titleSmall)
-        s.fetched.forEach { m ->
+        val visibleModels = ModelFilter.visible(s.fetched, s.selected, s.showAllModels)
+        val hiddenCount = s.fetched.size - visibleModels.size
+        visibleModels.forEach { m ->
             Row(
                 Modifier.fillMaxWidth().clickable { vm.toggleModel(m) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = m in s.selected, onCheckedChange = { vm.toggleModel(m) })
                 Text(m, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        // 音声合成・画像・埋め込みなど、チャットに使えないモデルは初期は隠す。切り替えで見られる
+        if (s.fetched.any { !ModelFilter.isChatModel(it) }) {
+            Row(
+                Modifier.fillMaxWidth().clickable { vm.setShowAllModels(!s.showAllModels) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = s.showAllModels, onCheckedChange = { vm.setShowAllModels(it) })
+                Text(
+                    stringResource(R.string.api_models_show_all) + if (!s.showAllModels && hiddenCount > 0) " ($hiddenCount)" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

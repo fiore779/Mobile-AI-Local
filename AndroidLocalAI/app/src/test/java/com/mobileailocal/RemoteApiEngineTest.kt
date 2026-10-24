@@ -268,6 +268,52 @@ class RemoteApiEngineTest {
         assertEquals(listOf("a"), engine().run())
     }
 
+    private val sysMsgs = listOf(ChatMessage(Role.System, "SYS"), ChatMessage(Role.User, "hi"))
+    private fun RemoteApiEngine.runSys() = runBlocking { withTimeout(10_000) { generate(sysMsgs, GenerationParams()).toList() } }
+    private fun roles(body: String): List<String> {
+        val a = JSONObject(body).getJSONArray("messages")
+        return (0 until a.length()).map { a.getJSONObject(it).getString("role") }
+    }
+    private val devInstructionError = """{"error":{"code":400,"message":"Developer instruction is not enabled for this model","status":"INVALID_ARGUMENT"}}"""
+
+    @Test fun foldsSystemPromptWhenModelRejectsItAndRemembersIt() {
+        handler = { n, s, _ ->
+            val o = s.getOutputStream()
+            if (n == 0) o.respond(400, body = devInstructionError)
+            else { o.sseHead(); o.sse(chunk("ok")); o.sse("data: [DONE]\n\n") }
+        }
+        val eng = engine()
+        assertEquals(listOf("ok"), eng.runSys())
+        assertEquals(2, connections.get())
+        assertEquals(listOf("system", "user"), roles(requestBodies[0]))
+        // 再送では System を取り除き、最初の User メッセージの前置きにする
+        assertEquals(listOf("user"), roles(requestBodies[1]))
+        val content = JSONObject(requestBodies[1]).getJSONArray("messages").getJSONObject(0).getString("content")
+        assertEquals("SYS\n\nhi", content)
+        // 覚えているので、次の呼び出しは最初から畳み込む(再送なしで 1 回の接続)
+        assertEquals(listOf("ok"), eng.runSys())
+        assertEquals(3, connections.get())
+        assertEquals(listOf("user"), roles(requestBodies[2]))
+    }
+
+    @Test fun failureAfterFoldingShowsProviderMessageAndIsNotRemembered() {
+        handler = { _, s, _ -> s.getOutputStream().respond(400, body = devInstructionError) }
+        val eng = engine()
+        val e = errorOf { eng.runSys() }
+        assertEquals(ApiErrorKind.InvalidRequest, e.kind)
+        assertTrue(e.providerMessage!!.contains("Developer instruction"))
+        assertEquals(2, connections.get()) // 1 回だけ畳み込んで再送する
+        // 成功していないので覚えない: 次の呼び出しは、また System つきで始める
+        errorOf { eng.runSys() }
+        assertEquals(listOf("system", "user"), roles(requestBodies[2]))
+    }
+
+    @Test fun otherInvalidRequestsDoNotFoldSystem() {
+        handler = { _, s, _ -> s.getOutputStream().respond(400, body = """{"error":{"message":"bad json"}}""") }
+        assertEquals(ApiErrorKind.InvalidRequest, errorOf { engine().runSys() }.kind)
+        assertEquals(1, connections.get())
+    }
+
     @Test fun retryDelays() {
         assertEquals(2000L, defaultRetryDelayMs(0, null))
         assertEquals(4000L, defaultRetryDelayMs(1, null))

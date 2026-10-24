@@ -43,6 +43,8 @@ class RemoteApiEngine(
     private val noSampling: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     // max_tokens を拒否された(max_completion_tokens を使う)「連携 + モデル」
     private val completionTokens: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
+    // システム指示を受け付けない「連携 + モデル」(最初の User メッセージに畳み込んで送る)
+    private val noSystemRole: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
     /** 直近の応答が最大トークン数で打ち切られたか(generate の開始で false に戻る)。画面の注記に使う。 */
     @Volatile var truncated: Boolean = false
@@ -70,12 +72,15 @@ class RemoteApiEngine(
         var retries = 0
         var sentSamplingRetry = false
         var sentTokensRetry = false
+        var sentSystemRetry = false
+        var foldSystem = memo in noSystemRole
         while (true) {
             val req = CloudRequest(
                 baseUrl = integration.baseUrl,
                 apiKey = key,
                 model = ref.model,
-                messages = messages,
+                // Anthropic は system を別項目で送るので畳み込みの対象外
+                messages = if (foldSystem && provider.type != ProviderType.Anthropic) foldSystemIntoUser(messages) else messages,
                 params = CloudParams(
                     temperature = params.temperature.takeIf { memo !in noSampling },
                     topP = params.topP.takeIf { memo !in noSampling },
@@ -85,6 +90,8 @@ class RemoteApiEngine(
             )
             try {
                 streamOnce(provider, req) { received = true; emit(it) }
+                // 畳み込んで成功したら、このモデルは次回から最初から畳み込む
+                if (foldSystem) noSystemRole += memo
                 return@flow
             } catch (e: ApiError) {
                 // 文字を受け取った後は再送しない(二重課金を避ける)
@@ -98,6 +105,13 @@ class RemoteApiEngine(
                         memo !in noSampling && mentions(e, "temperature", "top_p") -> {
                         noSampling += memo
                         sentSamplingRetry = true
+                    }
+                    e.kind == ApiErrorKind.InvalidRequest && !sentSystemRetry && memo !in noSystemRole &&
+                        provider.type != ProviderType.Anthropic && rejectsSystemRole(e.providerMessage) -> {
+                        // システム指示を受け付けないモデル: 最初の User メッセージの前置きに畳み込んで 1 回だけ再送する。
+                        // 成功すれば、このプロセスの間は次回から最初から畳み込む
+                        foldSystem = true
+                        sentSystemRetry = true
                     }
                     e.kind == ApiErrorKind.InvalidRequest && !sentTokensRetry &&
                         provider.type != ProviderType.Anthropic && mentions(e, "max_tokens", "max_completion_tokens") -> {
