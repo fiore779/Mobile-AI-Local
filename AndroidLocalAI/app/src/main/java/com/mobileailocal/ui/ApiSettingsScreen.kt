@@ -176,7 +176,10 @@ fun ApiSettingsScreen(
             onDismissRequest = { confirmDeleteAccount = false },
             text = { Text(stringResource(R.string.api_delete_account_confirm)) },
             confirmButton = {
-                TextButton(onClick = { confirmDeleteAccount = false; vm.deleteAccount() }) {
+                TextButton(onClick = {
+                    confirmDeleteAccount = false
+                    context.findActivity()?.let(vm::deleteAccount)
+                }) {
                     Text(stringResource(R.string.api_delete_account))
                 }
             },

@@ -8,7 +8,6 @@
     <string name="chat_hint">輸入訊息</string>
     <string name="chat_send">傳送</string>
     <string name="chat_stop">停止</string>
-    <string name="no_model">未載入模型</string>
     <string name="chat_empty">儘管問吧。對話不會離開這台裝置。</string>
     <string name="chat_empty_cloud">儘管問吧。您的輸入會傳送到 %1$s。</string>
     <string name="chat_select_model">選擇模型</string>
@@ -278,4 +277,5 @@
     <string name="api_effort_low">低</string>
     <string name="api_effort_medium">中</string>
     <string name="api_effort_high">高</string>
+    <string name="chat_label_local">裝置端</string>
 </resources>

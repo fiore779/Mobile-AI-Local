@@ -306,6 +306,7 @@ class RemoteApiEngineTest {
         val e = errorOf { eng.runSys() }
         assertEquals(ApiErrorKind.InvalidRequest, e.kind)
         assertTrue(e.providerMessage!!.contains("Developer instruction"))
+        assertTrue("最初のエラーも併記する", e.providerMessage!!.contains("(first attempt: "))
         assertEquals(2, connections.get()) // 1 回だけ畳み込んで再送する
         // 成功していないので覚えない: 次の呼び出しは、また System つきで始める
         errorOf { eng.runSys() }
@@ -408,6 +409,5 @@ class RemoteApiEngineTest {
         assertEquals(4000L, defaultRetryDelayMs(1, null))
         assertEquals(5000L, defaultRetryDelayMs(0, 5))
         assertEquals(30000L, defaultRetryDelayMs(0, 999))
-        assertNull(null) // 形式合わせ
     }
 }

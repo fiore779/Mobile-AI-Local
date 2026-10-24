@@ -30,6 +30,12 @@ class CloudConsent(private val context: Context) {
         context.cloudDataStore.edit { it[key(uid, type, scope)] = version }
     }
 
+    /** そのアカウントの同意の記録をすべて消す(アカウント削除用)。 */
+    suspend fun revokeAll(uid: String) {
+        val prefix = "cloud_consent_${uid}_"
+        context.cloudDataStore.edit { p -> p.asMap().keys.filter { it.name.startsWith(prefix) }.forEach { p.remove(it) } }
+    }
+
     suspend fun revoke(uid: String, type: ProviderType, scope: String = "") {
         context.cloudDataStore.edit { it.remove(key(uid, type, scope)) }
     }

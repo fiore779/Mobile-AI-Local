@@ -103,9 +103,11 @@ class CloudKeyStoreInstrumentedTest {
         val prod = CloudKeyStore.DEFAULT_ALIAS
         assertNotEquals(prod, testAlias)
         val before = keystore().containsAlias(prod)
+        val prodDir = File(context.filesDir, "cloud-keys")
+        val filesBefore = prodDir.list().orEmpty().sorted()
         store.put(uid, "i1", "k")
         keystore().deleteEntry(testAlias)
-        assertEquals(before, keystore().containsAlias(prod))
-        assertFalse(File(context.filesDir, "cloud-keys").listFiles().orEmpty().any { it.name.contains("_i1.bin") && false })
+        assertEquals(before, keystore().containsAlias(prod)) // 本番の鍵には触れていない
+        assertEquals(filesBefore, prodDir.list().orEmpty().sorted()) // 本番のキーのファイルも増減していない
     }
 }

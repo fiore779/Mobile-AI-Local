@@ -1,7 +1,6 @@
 package com.mobileailocal.data
 
 import android.content.Context
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import kotlinx.coroutines.Dispatchers
@@ -176,7 +175,7 @@ class CloudKeyStore(
         }
         if (existing != null) return@synchronized existing
         deleteAlias(ks)
-        createKey(strongBox = Build.VERSION.SDK_INT >= 28)
+        createKey(strongBox = true)
     }
 
     private fun resetKey() = synchronized(keyLock) {
@@ -199,7 +198,7 @@ class CloudKeyStore(
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             // IV は Cipher に作らせる(setRandomizedEncryptionRequired は既定の true のまま)。
             // ユーザー認証は要求しない(バックグラウンド生成で復号できなくなるため)
-        if (strongBox && Build.VERSION.SDK_INT >= 28) b.setIsStrongBoxBacked(true)
+        if (strongBox) b.setIsStrongBoxBacked(true) // minSdk 29 なので常に使える
         return try {
             gen.init(b.build())
             val k = gen.generateKey()

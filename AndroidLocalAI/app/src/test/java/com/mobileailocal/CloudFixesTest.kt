@@ -10,7 +10,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import javax.crypto.AEADBadTagException
 import javax.crypto.KeyGenerator
 
 class CloudFixesTest {
@@ -63,6 +62,5 @@ class CloudFixesTest {
         val flaky = KeyBlobCodec { throw IllegalStateException("keystore busy") }
         assertEquals(KeyBlobCodec.Decrypted.Transient, flaky.decryptDetailed("u", "i", blob))
         assertNull(flaky.decrypt("u", "i", blob))
-        assertTrue(AEADBadTagException::class.java.name.isNotEmpty())
     }
 }

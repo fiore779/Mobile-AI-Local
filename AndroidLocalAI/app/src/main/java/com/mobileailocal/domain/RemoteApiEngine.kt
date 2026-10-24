@@ -46,8 +46,9 @@ class RemoteApiEngine(
     private val noSampling: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     // max_tokens を拒否された(max_completion_tokens を使う)「連携 + モデル」
     private val completionTokens: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
-    // システム指示を受け付けない「連携 + モデル」(最初の User メッセージに畳み込んで送る)
+    // 推論量(reasoning_effort)の指定を拒否された「連携 + モデル」
     private val noReasoning: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
+    // システム指示を受け付けない「連携 + モデル」(最初の User メッセージに畳み込んで送る)
     private val noSystemRole: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
     /** 直近の応答が最大トークン数で打ち切られたか(generate の開始で false に戻る)。画面の注記に使う。 */
@@ -77,6 +78,7 @@ class RemoteApiEngine(
         var sentSamplingRetry = false
         var sentTokensRetry = false
         var sentSystemRetry = false
+        var firstSystemError: ApiError? = null
         var foldSystem = memo in noSystemRole
         while (true) {
             val req = CloudRequest(
@@ -122,6 +124,7 @@ class RemoteApiEngine(
                         // 成功すれば、このプロセスの間は次回から最初から畳み込む
                         foldSystem = true
                         sentSystemRetry = true
+                        firstSystemError = e
                     }
                     e.kind == ApiErrorKind.InvalidRequest && !sentTokensRetry &&
                         provider.type != ProviderType.Anthropic && mentions(e, "max_tokens", "max_completion_tokens") -> {
@@ -129,10 +132,21 @@ class RemoteApiEngine(
                         if (memo in completionTokens) completionTokens -= memo else completionTokens += memo
                         sentTokensRetry = true
                     }
-                    else -> throw e
+                    else -> throw withFirstError(e, firstSystemError)
                 }
             }
         }
+    }
+
+    /** 畳み込んで再送しても失敗したとき、最初のエラーの原文も詳細に併記する(原因を見失わないため)。 */
+    private fun withFirstError(e: ApiError, first: ApiError?): ApiError {
+        if (first == null || first === e) return e
+        val firstMsg = first.providerMessage ?: return e
+        val combined = (e.providerMessage ?: "") + "\n(first attempt: " + firstMsg + ")"
+        return ApiError(
+            e.kind, e.httpStatus, e.providerCode, combined.trim(), e.retryAfterSec, e.resetAt, e.requestId,
+            e.timeoutPhase, e.timeoutSec,
+        )
     }
 
     private fun mentions(e: ApiError, vararg words: String): Boolean {

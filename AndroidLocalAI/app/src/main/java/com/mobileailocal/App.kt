@@ -205,6 +205,10 @@ class App : Application() {
                     _modelError.value = localizedString(
                         if (integ == null) R.string.cloud_error_integration_missing else R.string.cloud_error_key_missing,
                     )
+                    // 直前のローカル読み込みを取り消した場合、読み込み表示が残らないようにし、元の選択を読み直す
+                    _modelLoading.value = null
+                    val prev = _selectedModelId.value
+                    if (prev != null && !localEngine.isLoaded) selectModel(prev)
                 }
                 return@launch
             }
@@ -261,21 +265,42 @@ class App : Application() {
      * アカウントと、サーバー上の連携メタデータ、端末内のこのアカウントの連携・キーを削除する(Play のアカウント削除要件)。
      * 失敗は AccountError(オフラインは Network、直近のサインインが必要なら RecentLoginRequired)。
      */
-    suspend fun deleteAccountAndData() {
+    suspend fun deleteAccountAndData(activity: android.app.Activity) {
         val u = accounts.uid.value ?: return
+        // 先に再認証する(Credential Manager)。取り消されたら何も消さない。直近のサインインが必要な削除も通る
+        accounts.reauthenticate(activity)
         try {
             cloudSync.deleteRemoteAll(u)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            throw AccountError.Network
+        } catch (e: Exception) {
+            // 通信の失敗だけをネットワークの文言にする(権限など、ほかの失敗は別の文言)
+            throw if (isNetworkFailure(e)) AccountError.Network else AccountError.Other
         }
         if (_selectedModel.value is ModelSelection.Cloud) selectModel(null)
         withContext(Dispatchers.IO) {
             cloudKeys.deleteAllFor(u)
             cloudRepo.deleteAll(u)
+            cloudConsent.revokeAll(u) // 同意の記録も端末に残さない
         }
         accounts.deleteAccount()
+    }
+
+    private fun isNetworkFailure(e: Throwable): Boolean {
+        var c: Throwable? = e
+        var depth = 0
+        while (c != null && depth < 4) {
+            if (c is java.io.IOException || c is kotlinx.coroutines.TimeoutCancellationException ||
+                c is com.google.firebase.FirebaseNetworkException
+            ) return true
+            if (c is com.google.firebase.firestore.FirebaseFirestoreException &&
+                (c.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE ||
+                    c.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.DEADLINE_EXCEEDED)
+            ) return true
+            c = c.cause
+            depth++
+        }
+        return false
     }
 
     /** チャットで使うモデルの id(未選択は null)。 */

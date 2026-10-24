@@ -34,6 +34,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,9 +48,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.mobileailocal.R
 import com.mobileailocal.domain.ErrorDetailText
 import com.mobileailocal.domain.ApiError
+import com.mobileailocal.domain.MarkdownLite
+import com.mobileailocal.domain.MdBlock
+import com.mobileailocal.domain.MdInline
 import com.mobileailocal.domain.ApiErrorKind
 import com.mobileailocal.domain.CloudIntegration
 import com.mobileailocal.domain.CloudModelRef
@@ -94,7 +109,7 @@ fun ChatScreen(
     val selection by vm.selectedModel.collectAsStateWithLifecycle()
     val integrations by vm.cloudIntegrations.collectAsStateWithLifecycle()
     val warnings by vm.cloudWarnings.collectAsStateWithLifecycle()
-    var menuSignal by remember { mutableStateOf(0) }
+    var menuSignal by remember { mutableIntStateOf(0) }
     val cloudSel = selection as? ModelSelection.Cloud
     val cloudInteg = cloudSel?.let { s -> integrations.firstOrNull { it.id == s.ref.integrationId } }
     var text by rememberSaveable { mutableStateOf("") }
@@ -105,11 +120,21 @@ fun ChatScreen(
     // 「AI に渡す」で入力欄へ入れたとき、切り詰めがあった間だけ小さく注意を出す
     var handoffTruncated by remember { mutableStateOf(false) }
 
+    // 送信を断られたとき(同意の取り消しなど)は、入力欄に本文を戻す
+    LaunchedEffect(state.rejectedText) {
+        state.rejectedText?.let { if (text.isBlank()) text = it; vm.consumeRejectedText() }
+    }
+
     // 拡張機能を切ったら確認ダイアログを閉じる
     LaunchedEffect(jsEnabled) { if (!jsEnabled) confirming = null }
     // 報告する回答の本文(押されたメッセージのもの)。null の間はダイアログは閉じている
     val context = LocalContext.current
     var reportText by remember { mutableStateOf<String?>(null) }
+
+    // AI の回答の上に出す提供元の目印(クラウドは ☁ と接続先名、ローカルはモデル名)
+    val localLabel = models.firstOrNull { it.id == selectedModelId }?.name ?: stringResource(R.string.chat_label_local)
+    val cloudLabel = "☁ " + (cloudInteg?.displayName ?: stringResource(R.string.cloud_section))
+    fun aiLabel(m: ChatMessage): String = if (m.origin == Origin.Cloud) cloudLabel else localLabel
 
     val visible = state.messages.filterNot { it.role == Role.System }
     val lastUserIndex = visible.indexOfLast { it.role == Role.User }
@@ -184,6 +209,7 @@ fun ChatScreen(
                             Bubble(
                                 m,
                                 isUser = false,
+                                label = aiLabel(m),
                                 messageIndex = index,
                                 jsEnabled = jsEnabled,
                                 generating = state.generating,
@@ -198,7 +224,14 @@ fun ChatScreen(
                                     (if (m.origin == Origin.Cloud) "☁ " else "") + stringResource(R.string.chat_ai_generated),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp),
                                 )
+                                TextButton(
+                                    onClick = { copyPrompt(context, answer ?: "") },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                ) {
+                                    Text(stringResource(R.string.chat_copy), style = MaterialTheme.typography.labelSmall)
+                                }
                                 TextButton(
                                     onClick = { reportText = answer },
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -214,6 +247,7 @@ fun ChatScreen(
                         Bubble(
                             m,
                             isUser = isUser,
+                            label = if (isUser) null else aiLabel(m),
                             messageIndex = index,
                             jsEnabled = jsEnabled,
                             generating = state.generating,
@@ -261,8 +295,10 @@ fun ChatScreen(
         if (state.generating && lastMsg != null && lastMsg.role == Role.Assistant &&
             lastMsg.origin == Origin.Cloud && lastMsg.content.isBlank()
         ) {
-            var waited by remember { mutableStateOf(0) }
-            LaunchedEffect(Unit) { while (true) { delay(1000); waited++ } }
+            // 経過秒は送信を始めた時刻(状態)から数えるので、画面の回転で 0 に戻らない
+            var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(Unit) { while (true) { delay(1000); nowMs = System.currentTimeMillis() } }
+            val waited = ((nowMs - state.sendStartedAt) / 1000).coerceAtLeast(0).toInt()
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -707,25 +743,55 @@ private fun Bubble(
     onCancelJs: () -> Unit,
     onHandoff: (JsRunResult) -> Unit,
     onDismissJs: () -> Unit,
+    /** AI の回答の上に控えめに出す提供元の目印(クラウドは ☁ と名前、ローカルはモデル名)。 */
+    label: String? = null,
 ) {
     // 思考過程は、回答が出始めたら畳んで、押すと再表示できる(状態は位置ごとに保持)
     val parsed = remember(m.content) { if (isUser) null else ThinkingParser.parse(m.content) }
     var showThinking by rememberSaveable { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (isUser) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Column(Modifier.padding(10.dp)) {
-                if (parsed?.thinking != null) {
-                    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val body = parsed?.answer ?: m.content
+
+    if (isUser) {
+        // ユーザーの発言: 右寄せの色つき吹き出し(コードブロック処理はしない)
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+            // 左に余白を残して、本文の長さに合わせた幅にする(短い発言は短い吹き出し)
+            Spacer(Modifier.width(48.dp))
+            Surface(
+                modifier = Modifier.widthIn(max = 560.dp).weight(1f, fill = false),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        body,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    // AI: 左寄せ。上に提供元の目印、思考は吹き出しなしの控えめな表示、最終回答だけを吹き出しにする
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        if (label != null) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
+            )
+        }
+        if (parsed?.thinking != null) {
+            // 推論(思考): 小さめ・薄い文字色・左に細い縦線。生成中は展開、完了後は折りたたむ(タップで開閉)
+            val muted = MaterialTheme.colorScheme.onSurfaceVariant
+            val expanded = !parsed.thinkingDone || showThinking
+            Row(Modifier.padding(start = 4.dp, bottom = 6.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                Box(Modifier.width(2.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
+                Column(Modifier.padding(start = 8.dp)) {
                     if (!parsed.thinkingDone) {
                         Text(stringResource(R.string.chat_thinking), style = MaterialTheme.typography.labelMedium, color = muted)
-                        Text(parsed.thinking, style = MaterialTheme.typography.bodySmall, color = muted)
                     } else if (parsed.thinking.isNotEmpty()) {
                         Text(
                             stringResource(if (showThinking) R.string.chat_hide_thinking else R.string.chat_show_thinking),
@@ -733,58 +799,94 @@ private fun Bubble(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showThinking = !showThinking }.padding(vertical = 2.dp),
                         )
-                        if (showThinking) {
-                            Text(parsed.thinking, style = MaterialTheme.typography.bodySmall, color = muted)
-                        }
+                    }
+                    if (expanded && parsed.thinking.isNotEmpty()) {
+                        Text(parsed.thinking, style = MaterialTheme.typography.bodySmall, color = muted)
                     }
                 }
-                val body = parsed?.answer ?: m.content
-                val topPad = Modifier.padding(top = if (parsed?.thinking != null) 6.dp else 0.dp)
-                if (body.isNotEmpty()) {
-                    if (isUser) {
-                        // ユーザーの吹き出しは従来どおりそのまま(コードブロック処理はしない)
-                        Text(body, modifier = topPad, style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        // 回答をセグメントへ分けて、コードブロックだけ CodeBlockView / 結果カードで出す
-                        val segments = remember(body) { CodeBlockParser.parse(body) }
-                        Column(topPad) {
-                            var blockIndex = 0
-                            for (segment in segments) {
-                                when (segment) {
-                                    is MessageSegment.Text -> Text(
-                                        segment.text,
-                                        style = MaterialTheme.typography.bodyMedium,
+            }
+        }
+        if (body.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    // 回答をセグメントへ分けて、コードブロックだけ CodeBlockView / 結果カードで出す
+                    val segments = remember(body) { CodeBlockParser.parse(body) }
+                    Column(Modifier.padding(horizontal = 10.dp, vertical = 10.dp)) {
+                        var blockIndex = 0
+                        for (segment in segments) {
+                            when (segment) {
+                                is MessageSegment.Text -> MarkdownText(segment.text)
+                                is MessageSegment.Code -> {
+                                    // blockIndex は Code セグメントだけを数える(0 始まり)。key は会話内の位置 + コードのハッシュ
+                                    val key = BlockKey(messageIndex, blockIndex, segment.code.hashCode())
+                                    blockIndex++
+                                    CodeBlockView(
+                                        lang = segment.lang,
+                                        code = segment.code,
+                                        runButton = runButtonState(segment, jsEnabled, generating, jsState, m.origin),
+                                        onRun = { onRunRequest(key, segment.code) },
                                     )
-                                    is MessageSegment.Code -> {
-                                        // blockIndex は Code セグメントだけを数える(0 始まり)。key は会話内の位置 + コードのハッシュ
-                                        val key = BlockKey(messageIndex, blockIndex, segment.code.hashCode())
-                                        blockIndex++
-                                        CodeBlockView(
-                                            lang = segment.lang,
-                                            code = segment.code,
-                                            runButton = runButtonState(segment, jsEnabled, generating, jsState, m.origin),
-                                            onRun = { onRunRequest(key, segment.code) },
+                                    // このブロックの実行状態をカードで出す(Running / Finished の key と一致するときだけ)
+                                    val stateKey = when (jsState) {
+                                        is JsRunState.Running -> jsState.key
+                                        is JsRunState.Finished -> jsState.key
+                                        JsRunState.Idle -> null
+                                    }
+                                    if (stateKey == key) {
+                                        JsResultCard(
+                                            state = jsState,
+                                            onCancel = onCancelJs,
+                                            onHandoff = onHandoff,
+                                            onClose = onDismissJs,
                                         )
-                                        // このブロックの実行状態をカードで出す(Running / Finished の key と一致するときだけ)
-                                        val stateKey = when (jsState) {
-                                            is JsRunState.Running -> jsState.key
-                                            is JsRunState.Finished -> jsState.key
-                                            JsRunState.Idle -> null
-                                        }
-                                        if (stateKey == key) {
-                                            JsResultCard(
-                                                state = jsState,
-                                                onCancel = onCancelJs,
-                                                onHandoff = onHandoff,
-                                                onClose = onDismissJs,
-                                            )
-                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** 本文のスタイル(読みやすい大きさと、1.5 前後の行間)。フォントスケールに合わせて sp で伸びる。 */
+private val BodyTextSize = 16.sp
+private val BodyLineHeight = 24.sp
+
+/** 最小限の Markdown(見出し・箇条書き・太字・インラインコード)で本文を出す。 */
+@Composable
+private fun MarkdownText(text: String) {
+    val blocks = remember(text) { MarkdownLite.parse(text) }
+    val codeBg = MaterialTheme.colorScheme.surfaceVariant
+    fun inlines(list: List<MdInline>) = buildAnnotatedString {
+        for (i in list) when (i) {
+            is MdInline.Plain -> append(i.text)
+            is MdInline.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(i.text) }
+            is MdInline.Code -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeBg)) { append(i.text) }
+        }
+    }
+    val base = MaterialTheme.typography.bodyLarge.copy(fontSize = BodyTextSize, lineHeight = BodyLineHeight)
+    Column(Modifier.fillMaxWidth()) {
+        for (b in blocks) when (b) {
+            MdBlock.Blank -> Spacer(Modifier.height(8.dp))
+            is MdBlock.Para -> Text(inlines(b.inlines), style = base)
+            is MdBlock.Heading -> Text(
+                inlines(b.inlines),
+                style = base.copy(
+                    fontSize = when (b.level) { 1 -> 22.sp; 2 -> 20.sp; 3 -> 18.sp; else -> 16.sp },
+                    lineHeight = when (b.level) { 1 -> 30.sp; 2 -> 28.sp; 3 -> 26.sp; else -> 24.sp },
+                    fontWeight = FontWeight.Bold,
+                ),
+                modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+            )
+            is MdBlock.Bullet -> Row(Modifier.padding(start = (b.depth * 16).dp)) {
+                Text(b.marker, style = base, modifier = Modifier.width(24.dp))
+                Text(inlines(b.inlines), style = base, modifier = Modifier.weight(1f))
             }
         }
     }

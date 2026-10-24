@@ -67,7 +67,7 @@ fun foldSystemIntoUser(messages: List<ChatMessage>): List<ChatMessage> {
 }
 
 private val SYSTEM_WORDS = listOf("developer instruction", "system instruction", "system role", "system message", "system prompt")
-private val REJECT_WORDS = listOf("not enabled", "not supported", "unsupported", "not allowed", "does not support", "doesn't support", "invalid")
+private val REJECT_WORDS = listOf("not enabled", "not supported", "unsupported", "not allowed", "does not support", "doesn't support")
 
 /** 提供側のエラー文が「システム(developer)指示を受け付けないモデル」を示しているか。 */
 fun rejectsSystemRole(providerMessage: String?): Boolean {

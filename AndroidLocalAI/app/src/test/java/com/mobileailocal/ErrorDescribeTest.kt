@@ -7,7 +7,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
-import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 
 class ErrorDescribeTest {
@@ -47,6 +46,5 @@ class ErrorDescribeTest {
         // 先頭 1 + IV 12 バイトを取り出して、同じ鍵・IV・AAD で復号できる(形式 [版][IV 12B][暗号文+タグ])
         assertEquals("secret", KeyBlobCodec { key }.decrypt("u", "i", blob))
         assertTrue(blob.size >= 1 + KeyBlobCodec.IV_BYTES + KeyBlobCodec.TAG_BITS / 8 + "secret".length)
-        assertTrue(Cipher.getInstance("AES/GCM/NoPadding").algorithm.isNotEmpty())
     }
 }

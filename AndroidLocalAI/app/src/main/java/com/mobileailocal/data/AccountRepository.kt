@@ -63,8 +63,8 @@ class AccountRepository(private val context: Context, scope: CoroutineScope) {
 
     private fun FirebaseUser.toAccount() = GoogleAccount(uid, email, displayName)
 
-    /** Google でサインインする。Activity が要る。失敗は AccountError。 */
-    suspend fun signIn(activity: Activity): GoogleAccount {
+    /** Credential Manager で Google の ID トークンを得る(サインインと再認証で共通)。失敗は AccountError。 */
+    private suspend fun obtainIdToken(activity: Activity): String {
         val option = GetSignInWithGoogleOption.Builder(context.getString(R.string.default_web_client_id)).build()
         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
         val result = try {
@@ -80,11 +80,16 @@ class AccountRepository(private val context: Context, scope: CoroutineScope) {
         if (cred !is CustomCredential || cred.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
             throw AccountError.Other
         }
-        val idToken = try {
+        return try {
             GoogleIdTokenCredential.createFrom(cred.data).idToken
         } catch (e: GoogleIdTokenParsingException) {
             throw AccountError.Other
         }
+    }
+
+    /** Google でサインインする。Activity が要る。失敗は AccountError。 */
+    suspend fun signIn(activity: Activity): GoogleAccount {
+        val idToken = obtainIdToken(activity)
         try {
             auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).awaitTask()
         } catch (e: FirebaseNetworkException) {
@@ -95,6 +100,24 @@ class AccountRepository(private val context: Context, scope: CoroutineScope) {
             throw AccountError.Other
         }
         return auth.currentUser?.toAccount() ?: throw AccountError.Other
+    }
+
+    /**
+     * 現在のアカウントを再認証する(アカウント削除の前に、本人の操作で確かめる)。
+     * 別のアカウントが選ばれたら失敗(Other)にする。取り消しは Cancelled。
+     */
+    suspend fun reauthenticate(activity: Activity) {
+        val user = auth.currentUser ?: throw AccountError.Other
+        val idToken = obtainIdToken(activity)
+        try {
+            user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).awaitTask()
+        } catch (e: FirebaseNetworkException) {
+            throw AccountError.Network
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw AccountError.Other // 別のアカウントを選んだ場合などを含む
+        }
     }
 
     /** サインアウトする(端末内の連携とキーは残す。同じアカウントで入り直すと使える)。 */

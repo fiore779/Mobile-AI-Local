@@ -8,7 +8,6 @@
     <string name="chat_hint">Type a message</string>
     <string name="chat_send">Send</string>
     <string name="chat_stop">Stop</string>
-    <string name="no_model">No model loaded</string>
     <string name="chat_empty">Ask anything. Everything stays on this device.</string>
     <string name="chat_empty_cloud">Ask anything. Your messages are sent to %1$s.</string>
     <string name="chat_select_model">Select a model</string>
@@ -278,4 +277,5 @@
     <string name="api_effort_low">Low</string>
     <string name="api_effort_medium">Medium</string>
     <string name="api_effort_high">High</string>
+    <string name="chat_label_local">On-device</string>
 </resources>

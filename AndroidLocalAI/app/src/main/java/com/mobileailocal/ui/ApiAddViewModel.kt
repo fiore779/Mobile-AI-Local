@@ -194,7 +194,8 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         val s = _state.value
         val type = s.type ?: return
         // クラウド連携の保存はサインインしているときだけ(連携はアカウントごとに記録する)
-        if (a.accounts.uid.value == null) { _state.update { it.copy(formError = R.string.cloud_form_signin_required) }; return }
+        val uid = a.accounts.uid.value
+        if (uid == null) { _state.update { it.copy(formError = R.string.cloud_form_signin_required) }; return }
         urlProblem(s)?.let { e -> _state.update { it.copy(formError = e) }; return }
         val name = CloudInputs.cleanDisplayName(s.name)
         val needsKey = type != ProviderType.OpenAiCompatCustom && s.key.isEmpty() && !s.hasStoredKey
@@ -211,7 +212,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         viewModelScope.launch {
             // 同意がまだなら、保存の前に確認する(カスタムは接続先ホストごと)
             val scope = CloudInputs.consentScope(type, s.baseUrl)
-            if (!a.cloudConsent.isAccepted(a.uid(), type, scope)) {
+            if (!a.cloudConsent.isAccepted(uid, type, scope)) {
                 saveAfterConsent = true
                 _state.update { it.copy(consentFor = type, consentHost = scope.ifEmpty { null }) }
                 return@launch
@@ -227,8 +228,8 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
             )
             // 接続テストで上限・課金の失敗が出ていても、キーは有効なので保存する(設計書 7.2)
             try {
-                if (s.key.isNotEmpty()) a.cloudKeys.put(a.uid(), id, s.key)
-                a.cloudRepo.upsert(a.uid(), item)
+                if (s.key.isNotEmpty()) a.cloudKeys.put(uid, id, s.key)
+                a.cloudRepo.upsert(uid, item)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -246,7 +247,9 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         val s = _state.value
         val t = s.type ?: return
         // 選択中なら未選択に戻す(次に使うときに再度確認する)
-        a.revokeCloudConsent(t, CloudInputs.consentScope(t, s.baseUrl))
+        // 編集中の(まだ保存していない)URL ではなく、保存済みの接続先に対する同意を取り消す
+        val savedUrl = if (s.editingId != null) originalBaseUrl else s.baseUrl
+        a.revokeCloudConsent(t, CloudInputs.consentScope(t, savedUrl))
     }
 
     fun delete() {

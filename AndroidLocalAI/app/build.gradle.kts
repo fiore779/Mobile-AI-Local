@@ -18,8 +18,9 @@ android {
         // 既定は Android 10(API 29)。BlueStacks(Android 9)で試すときだけ -PminSdk=28 を付ける
         minSdk = (findProperty("minSdk") as String?)?.toInt() ?: 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // 1.0.0(初の公開版)。内部配布した 0.1.0 は versionCode 1 なので、更新インストールできるよう 2 から始める
+        versionCode = 2
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // 既定は arm64 のみ(公開用)。x86_64 のエミュレーターで試すときは -Pabis=x86_64 を付ける
         ndk { abiFilters += ((findProperty("abis") as String?)?.split(",") ?: listOf("arm64-v8a")) }
@@ -54,6 +55,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    // アプリ内で言語を切り替える(Locale を自前で設定する)ので、AAB を言語ごとに分割しない
+    // (分割すると、端末の言語以外の文字列が配信されず、アプリ内で切り替えた言語が表示できなくなる)
+    bundle { language { enableSplit = false } }
 
     buildFeatures { compose = true; buildConfig = true }
     ndkVersion = "27.2.12479018"

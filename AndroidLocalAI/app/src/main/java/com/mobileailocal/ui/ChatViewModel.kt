@@ -68,6 +68,10 @@ data class ChatUiState(
     val cloudError: ApiError? = null,
     /** 最大トークン数で打ち切られた(設定で増やせる)。 */
     val maxTokensNotice: Boolean = false,
+    /** 送信を断ったとき(同意の取り消しなど)、入力欄へ戻す本文。画面が読んだら consumeRejectedText() で消す。 */
+    val rejectedText: String? = null,
+    /** 生成(送信)を始めた時刻。応答待ちの経過秒の基準(画面の回転で数え直さないため、状態に持つ)。 */
+    val sendStartedAt: Long = 0L,
     /** 会話の途中でクラウドへ切り替えた最初の送信の確認待ち(画面がダイアログを出す)。 */
     val pendingCloudConfirm: PendingSend? = null,
     /** クラウドへ送るとき、古いやり取りを送らなかった。 */
@@ -152,6 +156,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         if (p.retry) retry() else send(p.text)
     }
 
+    fun consumeRejectedText() { _state.value = _state.value.copy(rejectedText = null) }
+
     fun cancelPendingSend() { _state.value = _state.value.copy(pendingCloudConfirm = null) }
 
     fun dismissCloudError() { _state.value = _state.value.copy(cloudError = null) }
@@ -221,7 +227,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val self = coroutineContext.job
             // 同意が取り消されていたら送らない(状態もDBも触らない)
             if (cloud && !a.cloudSendAllowed()) {
-                _state.value = _state.value.copy(error = a.localizedString(R.string.cloud_error_consent_required))
+                _state.value = _state.value.copy(
+                    error = a.localizedString(R.string.cloud_error_consent_required),
+                    rejectedText = if (retry) null else text, // 入力欄を空にしたままにしない
+                )
                 return@launch
             }
             finalSave?.join()
@@ -268,6 +277,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 conversationId = cid,
                 messages = history + ChatMessage(Role.Assistant, "", origin),
                 generating = true,
+                sendStartedAt = System.currentTimeMillis(),
                 error = null,
                 cloudError = null,
                 maxTokensNotice = false,

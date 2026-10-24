@@ -64,7 +64,8 @@ class ApiSettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun signOut() = run { a.accounts.signOut() }
 
-    fun deleteAccount() = run { a.deleteAccountAndData() }
+    /** 再認証(Credential Manager)してから、アカウントと連携情報を削除する。Activity が要る。 */
+    fun deleteAccount(activity: Activity) = run { a.deleteAccountAndData(activity) }
 
     private fun run(block: suspend () -> Unit) {
         if (_busy.value) return
