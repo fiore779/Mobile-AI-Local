@@ -10,6 +10,7 @@
     <string name="chat_stop">Stop</string>
     <string name="no_model">No model loaded</string>
     <string name="chat_empty">Ask anything. Everything stays on this device.</string>
+    <string name="chat_empty_cloud">Ask anything. Your messages are sent to %1$s.</string>
     <string name="chat_select_model">Select a model</string>
     <string name="chat_no_models">No models installed. Download one from the Models tab.</string>
     <string name="chat_unload_model">Unload model</string>

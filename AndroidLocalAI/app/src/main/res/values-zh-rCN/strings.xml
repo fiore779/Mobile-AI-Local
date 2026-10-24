@@ -10,6 +10,7 @@
     <string name="chat_stop">停止</string>
     <string name="no_model">未加载模型</string>
     <string name="chat_empty">随便问点什么吧。对话不会离开本设备。</string>
+    <string name="chat_empty_cloud">随便问点什么吧。您的输入会发送到 %1$s。</string>
     <string name="chat_select_model">选择模型</string>
     <string name="chat_no_models">还没有已安装的模型。请到「模型」页下载一个。</string>
     <string name="chat_unload_model">卸载模型</string>

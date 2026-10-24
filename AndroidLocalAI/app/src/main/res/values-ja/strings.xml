@@ -10,6 +10,7 @@
     <string name="chat_stop">停止</string>
     <string name="no_model">モデルが読み込まれていません</string>
     <string name="chat_empty">何でも聞いてください。会話は端末の外に出ません。</string>
+    <string name="chat_empty_cloud">何でも聞いてください。入力は %1$s に送信されます。</string>
     <string name="chat_select_model">モデルを選択</string>
     <string name="chat_no_models">モデルがありません。「モデル」タブからダウンロードしてください。</string>
     <string name="chat_unload_model">モデルを外す</string>

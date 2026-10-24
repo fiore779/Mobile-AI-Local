@@ -147,7 +147,8 @@ fun ChatScreen(
         if (visible.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
                 Text(
-                    stringResource(R.string.chat_empty),
+                    if (cloudSel != null) stringResource(R.string.chat_empty_cloud, cloudInteg?.displayName ?: "")
+                    else stringResource(R.string.chat_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
