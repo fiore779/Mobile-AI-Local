@@ -14,6 +14,7 @@
     <string name="chat_no_models">還沒有已安裝的模型。請到「模型」分頁下載一個。</string>
     <string name="chat_unload_model">卸載模型</string>
     <string name="chat_loading_model">載入中…</string>
+    <string name="chat_loading_model_banner">正在載入模型… %1$d%%。載入完成前無法傳送,請稍候。</string>
     <string name="history_search">搜尋對話</string>
     <string name="history_rename">重新命名</string>
     <string name="history_delete">刪除</string>
@@ -101,6 +102,13 @@
     <string name="model_error_too_long">訊息超出了上下文長度。</string>
     <string name="model_error_decode">模型引擎處理失敗。</string>
     <string name="model_error_unknown">未預期的錯誤: %1$s</string>
+    <string name="model_error_hint_arch">可能的原因:內建的 llama.cpp 不支援此模型架構「%1$s」。</string>
+    <string name="model_error_hint_memory">可能的原因:記憶體不足。請嘗試較小的模型或較短的上下文長度。</string>
+    <string name="model_error_hint_corrupt">可能的原因:檔案已損毀或不完整。請刪除後重新下載。</string>
+    <string name="model_error_hint_unsupported">可能的原因:內建的 llama.cpp 不支援此類模型。</string>
+    <string name="model_error_hint_unknown">原因不明。請查看下方詳細資訊。</string>
+    <string name="error_detail_show">顯示詳細資訊</string>
+    <string name="error_detail_hide">隱藏詳細資訊</string>
     <!-- JavaScript 実行(拡張機能) -->
     <string name="settings_extensions">擴充功能</string>
     <string name="settings_extensions_on">開啟</string>

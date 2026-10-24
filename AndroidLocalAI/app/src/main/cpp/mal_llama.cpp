@@ -4,6 +4,8 @@
 #include <android/log.h>
 
 #include <atomic>
+#include <deque>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -67,6 +69,36 @@ jstring make_jstring(JNIEnv *env, const std::string &s) {
     return env->NewStringUTF(sanitize_utf8(s).c_str());
 }
 
+// llama.cpp が出した ERROR 行(失敗理由として Kotlin へ返す)。直近 8 行・1 行 300 バイトまで。
+// logcat には出さず、メモリ上にだけ持つ。モデルのパスは Kotlin 側で伏せる。
+std::mutex g_err_mu;
+std::deque<std::string> g_errs;
+
+void capture_log(ggml_log_level level, const char *text, void *) {
+    if (level != GGML_LOG_LEVEL_ERROR || !text) return;
+    std::string s(text);
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+    if (s.empty()) return;
+    if (s.size() > 300) s.resize(300);
+    std::lock_guard<std::mutex> lk(g_err_mu);
+    g_errs.push_back(s);
+    if (g_errs.size() > 8) g_errs.pop_front();
+}
+
+void clear_errs() {
+    std::lock_guard<std::mutex> lk(g_err_mu);
+    g_errs.clear();
+}
+
+// "CODE" または "CODE:<行>(改行区切り)" を作る(extra があれば先頭の行にする)。
+std::string with_detail(const std::string &code, const std::string &extra = "") {
+    std::lock_guard<std::mutex> lk(g_err_mu);
+    std::string d = extra;
+    for (const auto &l : g_errs) { if (!d.empty()) d += "\n"; d += l; }
+    g_errs.clear();
+    return d.empty() ? code : code + ":" + d;
+}
+
 void free_all() {
     g_cache.clear();
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
@@ -82,11 +114,13 @@ JNIEXPORT jstring JNICALL
 Java_com_mobileailocal_domain_LlamaCppEngine_nativeLoad(JNIEnv *env, jobject, jstring path, jint nCtx, jint nThreads) {
     free_all();
     llama_backend_init();
+    clear_errs();
+    llama_log_set(capture_log, nullptr);
 
     llama_model_params mp = llama_model_default_params();
     mp.n_gpu_layers = 0;
     g_model = llama_model_load_from_file(jstr(env, path).c_str(), mp);
-    if (!g_model) return make_jstring(env, "E_LOAD_FILE");
+    if (!g_model) return make_jstring(env, with_detail("E_LOAD_FILE"));
 
     llama_context_params cp = llama_context_default_params();
     cp.n_ctx = static_cast<uint32_t>(nCtx);
@@ -95,7 +129,7 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeLoad(JNIEnv *env, jobject, js
     cp.n_threads = nThreads;
     cp.n_threads_batch = nThreads;
     g_ctx = llama_init_from_model(g_model, cp);
-    if (!g_ctx) { free_all(); return make_jstring(env, "E_CONTEXT"); }
+    if (!g_ctx) { std::string e = with_detail("E_CONTEXT"); free_all(); return make_jstring(env, e); }
     LOGI("loaded: n_ctx=%u threads=%d", llama_n_ctx(g_ctx), nThreads);
     return make_jstring(env, "");
 }
@@ -189,6 +223,7 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
         common = 0;
     }
     g_cache.resize(common);
+    clear_errs();
     LOGI("prompt=%zu tokens, reused=%zu", tokens.size(), common);
 
     const int n_batch = (int) llama_n_batch(g_ctx);
@@ -196,10 +231,11 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
         if (g_stop) { llama_sampler_free(smpl); g_cache.clear(); llama_memory_clear(mem, true); return make_jstring(env, ""); }
         int cnt = std::min<int>(n_batch, tokens.size() - i);
         llama_batch b = llama_batch_get_one(tokens.data() + i, cnt);
-        if (llama_decode(g_ctx, b) != 0) {
+        int rc = llama_decode(g_ctx, b);
+        if (rc != 0) {
             llama_sampler_free(smpl);
             g_cache.clear(); llama_memory_clear(mem, true);
-            return make_jstring(env, "E_DECODE_PROMPT");
+            return make_jstring(env, with_detail("E_DECODE_PROMPT", "llama_decode returned " + std::to_string(rc)));
         }
         g_cache.insert(g_cache.end(), tokens.begin() + i, tokens.begin() + i + cnt);
     }
@@ -227,7 +263,8 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
         }
 
         llama_batch b = llama_batch_get_one(&tok, 1);
-        if (llama_decode(g_ctx, b) != 0) { error = "E_DECODE_GEN"; break; }
+        int rc = llama_decode(g_ctx, b);
+        if (rc != 0) { error = with_detail("E_DECODE_GEN", "llama_decode returned " + std::to_string(rc)); break; }
         g_cache.push_back(tok);
     }
     llama_sampler_free(smpl);

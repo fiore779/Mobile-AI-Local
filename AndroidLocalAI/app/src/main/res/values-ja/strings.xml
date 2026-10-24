@@ -14,6 +14,7 @@
     <string name="chat_no_models">モデルがありません。「モデル」タブからダウンロードしてください。</string>
     <string name="chat_unload_model">モデルを外す</string>
     <string name="chat_loading_model">読み込み中…</string>
+    <string name="chat_loading_model_banner">モデルを読み込み中… %1$d%%。完了するまで送信できません。しばらくお待ちください。</string>
     <string name="history_search">会話を検索</string>
     <string name="history_rename">名前を変更</string>
     <string name="history_delete">削除</string>
@@ -101,6 +102,13 @@
     <string name="model_error_too_long">メッセージがコンテキスト長に収まりません。</string>
     <string name="model_error_decode">モデルエンジンの処理に失敗しました。</string>
     <string name="model_error_unknown">予期しないエラー: %1$s</string>
+    <string name="model_error_hint_arch">考えられる原因: このモデルのアーキテクチャ「%1$s」は、同梱の llama.cpp が対応していません。</string>
+    <string name="model_error_hint_memory">考えられる原因: メモリ不足です。小さいモデルか、短いコンテキスト長を試してください。</string>
+    <string name="model_error_hint_corrupt">考えられる原因: ファイルが壊れているか、途中までしかありません。削除してダウンロードし直してください。</string>
+    <string name="model_error_hint_unsupported">考えられる原因: このモデルの種類は、同梱の llama.cpp が対応していません。</string>
+    <string name="model_error_hint_unknown">原因は不明です。下の詳細を確認してください。</string>
+    <string name="error_detail_show">詳細を表示</string>
+    <string name="error_detail_hide">詳細を隠す</string>
     <!-- JavaScript 実行(拡張機能) -->
     <string name="settings_extensions">拡張機能</string>
     <string name="settings_extensions_on">オン</string>

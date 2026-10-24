@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
@@ -45,6 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobileailocal.R
+import com.mobileailocal.domain.ErrorDetailText
+import com.mobileailocal.domain.loadingPercent
 import com.mobileailocal.data.DeviceStatus
 import com.mobileailocal.data.ModelEntity
 import com.mobileailocal.domain.BlockKey
@@ -100,15 +104,23 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
 
     Column(Modifier.fillMaxSize()) {
         ModelBar(vm, models, selectedModelId, modelLoading, onEditPrompt = { showPromptDialog = true })
+        modelLoading?.let { progress ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(R.string.chat_loading_model_banner, loadingPercent(progress)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         modelError?.let { reason ->
-            Text(
-                stringResource(R.string.chat_model_load_failed, reason),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-            )
+            val (summary, detail) = ErrorDetailText.split(reason)
+            ErrorBlock(stringResource(R.string.chat_model_load_failed, summary), detail, small = true)
         }
         DeviceStatusLine(deviceStatus)
         if (visible.isEmpty()) {
@@ -222,11 +234,8 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
             }
         }
         state.error?.let { message ->
-            Text(
-                message,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            )
+            val (summary, detail) = ErrorDetailText.split(message)
+            ErrorBlock(summary, detail, small = false)
         }
         // 「AI に渡す」で切り詰めたときだけ、入力欄の上に小さく注意を出す(送信・編集で消す)
         if (handoffTruncated) {
@@ -254,7 +263,7 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
             } else {
                 TextButton(
                     onClick = { if (vm.send(text)) { text = ""; handoffTruncated = false } },
-                    enabled = text.isNotBlank(),
+                    enabled = text.isNotBlank() && modelLoading == null,
                 ) {
                     Text(stringResource(R.string.chat_send))
                 }
@@ -319,6 +328,49 @@ fun ChatScreen(vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewMode
             onConfirm = { vm.runJs(pending.key, pending.code); confirming = null },
             onDismiss = { confirming = null },
         )
+    }
+}
+
+/** エラー文。詳細があれば、タップで展開でき、コピーもできる。 */
+@Composable
+private fun ErrorBlock(summary: String, detail: String?, small: Boolean) {
+    var open by remember(summary, detail) { mutableStateOf(false) }
+    val context = LocalContext.current
+    Column(Modifier.fillMaxWidth().padding(horizontal = if (small) 16.dp else 12.dp, vertical = 2.dp)) {
+        Text(
+            summary,
+            color = MaterialTheme.colorScheme.error,
+            style = if (small) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+        )
+        if (detail != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { open = !open },
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        stringResource(if (open) R.string.error_detail_hide else R.string.error_detail_show),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                if (open) {
+                    TextButton(
+                        onClick = { copyPrompt(context, "$summary\n$detail") },
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                    ) {
+                        Text(stringResource(R.string.chat_copy), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            if (open) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

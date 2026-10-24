@@ -14,6 +14,7 @@
     <string name="chat_no_models">No models installed. Download one from the Models tab.</string>
     <string name="chat_unload_model">Unload model</string>
     <string name="chat_loading_model">Loading…</string>
+    <string name="chat_loading_model_banner">Loading the model… %1$d%%. You can send messages once it finishes.</string>
     <string name="history_search">Search conversations</string>
     <string name="history_rename">Rename</string>
     <string name="history_delete">Delete</string>
@@ -101,6 +102,13 @@
     <string name="model_error_too_long">The message is too long for the context length.</string>
     <string name="model_error_decode">Processing failed in the model engine.</string>
     <string name="model_error_unknown">Unexpected error: %1$s</string>
+    <string name="model_error_hint_arch">Likely cause: the model architecture "%1$s" is not supported by the bundled llama.cpp.</string>
+    <string name="model_error_hint_memory">Likely cause: not enough memory. Try a smaller model or a shorter context length.</string>
+    <string name="model_error_hint_corrupt">Likely cause: the file is corrupted or incomplete. Delete it and download it again.</string>
+    <string name="model_error_hint_unsupported">Likely cause: this model variant is not supported by the bundled llama.cpp.</string>
+    <string name="model_error_hint_unknown">Cause unknown. See the details below.</string>
+    <string name="error_detail_show">Show details</string>
+    <string name="error_detail_hide">Hide details</string>
     <!-- JavaScript 実行(拡張機能) -->
     <string name="settings_extensions">Extensions</string>
     <string name="settings_extensions_on">On</string>

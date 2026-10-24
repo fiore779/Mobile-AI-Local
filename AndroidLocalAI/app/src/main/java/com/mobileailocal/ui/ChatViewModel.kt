@@ -113,6 +113,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun generate(text: String, retry: Boolean): Boolean {
         if (text.isBlank() || _state.value.generating || switching) return false
+        // モデル読み込み中は送れない(画面側でも送信ボタンを止めている)
+        if (a.modelLoading.value != null) return false
         // モデルが無いときは、サービスも空のメッセージも作らずにエラーだけ出す
         if (!a.engine.isLoaded) {
             _state.value = _state.value.copy(error = a.localizedString(R.string.chat_no_model_loaded))
