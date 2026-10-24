@@ -51,6 +51,12 @@ class ApiSettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun delete(id: String) = a.deleteIntegration(id)
 
+    /** Gemini の推論量(空 = モデルの既定)。 */
+    val geminiEffort: StateFlow<String> = a.settings.settings.map { it.geminiReasoningEffort }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    fun setGeminiEffort(v: String) { viewModelScope.launch { a.settings.setGeminiReasoningEffort(v) } }
+
     fun signIn(activity: Activity) = run {
         _error.value = null
         a.accounts.signIn(activity)

@@ -64,6 +64,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** reasoning_effort に送ってよい値(Gemini の OpenAI 互換の公式ページで確認した minimal / low / medium / high)。 */
+val REASONING_EFFORTS = listOf("minimal", "low", "medium", "high")
+
 /** 依存の置き場。DI ライブラリは入れず、ここで手動で組み立てる。 */
 class App : Application() {
     lateinit var db: AppDatabase; private set
@@ -301,6 +304,9 @@ class App : Application() {
         accounts = AccountRepository(this, ioScope)
         cloudSync = CloudSync(cloudRepo, FirestoreAccountStore(FirebaseFirestore.getInstance()), cloudKeys)
         remoteEngine = RemoteApiEngine(RepositoryCredentials(cloudRepo, cloudKeys) { uid() }, CloudHttp())
+        // Gemini の推論量(設定)。空なら送らない
+        val effortState = settings.settings.map { it.geminiReasoningEffort }.stateIn(ioScope, SharingStarted.Eagerly, "")
+        remoteEngine.reasoningEffort = { effortState.value.takeIf { it in REASONING_EFFORTS } }
         models = ModelRepository(this, db.modelDao())
         downloads = DownloadTracker(this, models, settings)
         deviceMonitor = DeviceMonitor(this)

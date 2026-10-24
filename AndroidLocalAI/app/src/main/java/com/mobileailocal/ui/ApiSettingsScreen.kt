@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -139,6 +140,29 @@ fun ApiSettingsScreen(
         }
         Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
             Text(stringResource(R.string.api_add))
+        }
+
+        // Gemini の推論量。考える時間が長くて「時間切れ」になるときは、下げると速くなる
+        val effort by vm.geminiEffort.collectAsStateWithLifecycle()
+        Text(
+            stringResource(R.string.api_gemini_effort),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 20.dp),
+        )
+        Text(
+            stringResource(R.string.api_gemini_effort_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        listOf("" to R.string.api_effort_auto, "minimal" to R.string.api_effort_minimal, "low" to R.string.api_effort_low,
+            "medium" to R.string.api_effort_medium, "high" to R.string.api_effort_high).forEach { (v, label) ->
+            Row(
+                Modifier.fillMaxWidth().clickable { vm.setGeminiEffort(v) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = effort == v, onClick = { vm.setGeminiEffort(v) })
+                Text(stringResource(label))
+            }
         }
         OutlinedButton(
             onClick = { confirmDeleteAccount = true },

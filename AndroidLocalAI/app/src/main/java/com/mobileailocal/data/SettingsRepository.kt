@@ -23,6 +23,8 @@ data class AppSettings(
     val wifiOnly: Boolean = true,
     /** JavaScript 実行(拡張機能)を使うか。既定は無効。 */
     val jsEnabled: Boolean = false,
+    /** Gemini のプリセットに送る推論量(reasoning_effort)。空なら送らない(モデルの既定)。minimal / low / medium / high。 */
+    val geminiReasoningEffort: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -37,6 +39,7 @@ class SettingsRepository(private val context: Context) {
         val threads = intPreferencesKey("threads")
         val wifiOnly = booleanPreferencesKey("wifi_only")
         val jsEnabled = booleanPreferencesKey("js_enabled")
+        val geminiEffort = stringPreferencesKey("gemini_reasoning_effort")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -47,6 +50,7 @@ class SettingsRepository(private val context: Context) {
             defaultModelId = p[K.model],
             wifiOnly = p[K.wifiOnly] ?: true,
             jsEnabled = p[K.jsEnabled] ?: false,
+            geminiReasoningEffort = p[K.geminiEffort] ?: "",
             params = GenerationParams(
                 temperature = p[K.temperature] ?: d.temperature,
                 topP = p[K.topP] ?: d.topP,
@@ -61,6 +65,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLanguage(v: String) = context.dataStore.edit { it[K.language] = v }
     suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[K.wifiOnly] = v }
     suspend fun setJsEnabled(v: Boolean) = context.dataStore.edit { it[K.jsEnabled] = v }
+    suspend fun setGeminiReasoningEffort(v: String) = context.dataStore.edit { it[K.geminiEffort] = v }
     suspend fun setDefaultModel(v: String?) = context.dataStore.edit { p -> set(p, v) }
     suspend fun setParams(v: GenerationParams) = context.dataStore.edit {
         it[K.temperature] = v.temperature

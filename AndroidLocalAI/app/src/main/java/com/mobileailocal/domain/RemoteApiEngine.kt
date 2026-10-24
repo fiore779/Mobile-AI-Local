@@ -39,11 +39,15 @@ class RemoteApiEngine(
 
     @Volatile var current: CloudModelRef? = null
 
+    /** Gemini のプリセットに送る推論量(reasoning_effort)。null なら送らない。設定から App が差し込む。 */
+    @Volatile var reasoningEffort: () -> String? = { null }
+
     // temperature/top_p を拒否された「連携 + モデル」(プロセスの間だけ覚える。永続化しない)
     private val noSampling: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     // max_tokens を拒否された(max_completion_tokens を使う)「連携 + モデル」
     private val completionTokens: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     // システム指示を受け付けない「連携 + モデル」(最初の User メッセージに畳み込んで送る)
+    private val noReasoning: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     private val noSystemRole: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
     /** 直近の応答が最大トークン数で打ち切られたか(generate の開始で false に戻る)。画面の注記に使う。 */
@@ -86,6 +90,7 @@ class RemoteApiEngine(
                     topP = params.topP.takeIf { memo !in noSampling },
                     maxTokens = params.maxTokens,
                     useMaxCompletionTokens = memo in completionTokens,
+                    reasoningEffort = if (provider.type == ProviderType.Gemini && memo !in noReasoning) reasoningEffort() else null,
                 ),
             )
             try {
@@ -105,6 +110,11 @@ class RemoteApiEngine(
                         memo !in noSampling && mentions(e, "temperature", "top_p") -> {
                         noSampling += memo
                         sentSamplingRetry = true
+                    }
+                    e.kind == ApiErrorKind.InvalidRequest && memo !in noReasoning && provider.type == ProviderType.Gemini &&
+                        reasoningEffort() != null && mentions(e, "reasoning", "thinking") -> {
+                        // 推論量の指定を拒否するモデル: 指定を外して再送し、このプロセスの間は送らない
+                        noReasoning += memo
                     }
                     e.kind == ApiErrorKind.InvalidRequest && !sentSystemRetry && memo !in noSystemRole &&
                         provider.type != ProviderType.Anthropic && rejectsSystemRole(e.providerMessage) -> {

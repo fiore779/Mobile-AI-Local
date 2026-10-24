@@ -267,4 +267,15 @@
     <string name="api_account_err_recent">セキュリティのため、いったんサインアウトして入り直してから、もう一度アカウントを削除してください。</string>
     <string name="cloud_form_signin_required">先に Google でサインインしてください(設定 > API連携)。</string>
     <string name="api_models_show_all">すべてのモデルを表示(音声合成・画像・埋め込みなどを含む)</string>
+    <string name="cloud_waiting">応答を待っています…(モデルが考えている場合があります) %1$d 秒</string>
+    <string name="cloud_timeout_connect">接続に失敗(%1$d 秒)</string>
+    <string name="cloud_timeout_first_byte">最初の応答が来ない(%1$d 秒)</string>
+    <string name="cloud_timeout_idle">途中で止まった(%1$d 秒間データなし)</string>
+    <string name="api_gemini_effort">Gemini の推論量</string>
+    <string name="api_gemini_effort_desc">Google Gemini のプリセットだけに使われます。低くすると返答が速くなります(時間切れになるときに有効)。すべてのモデルが対応しているわけではありません。</string>
+    <string name="api_effort_auto">モデルの既定(送らない)</string>
+    <string name="api_effort_minimal">最小</string>
+    <string name="api_effort_low">低</string>
+    <string name="api_effort_medium">中</string>
+    <string name="api_effort_high">高</string>
 </resources>

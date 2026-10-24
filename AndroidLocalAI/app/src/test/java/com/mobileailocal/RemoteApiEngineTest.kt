@@ -12,6 +12,7 @@ import com.mobileailocal.domain.ProviderType
 import com.mobileailocal.domain.RemoteApiEngine
 import com.mobileailocal.domain.Role
 import com.mobileailocal.domain.defaultRetryDelayMs
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -82,13 +83,16 @@ class RemoteApiEngineTest {
 
     private fun chunk(s: String) = "data: {\"choices\":[{\"delta\":{\"content\":\"$s\"}}]}\n\n"
 
-    private fun engine(type: ProviderType = ProviderType.OpenAi): RemoteApiEngine {
+    private fun engine(
+        type: ProviderType = ProviderType.OpenAi,
+        http: CloudHttp = CloudHttp(connectTimeoutMs = 2000, firstByteTimeoutMs = 3000, idleTimeoutMs = 3000, pollMs = 50),
+    ): RemoteApiEngine {
         val integ = CloudIntegration("i1", type, "T", "http://127.0.0.1:${server.localPort}/v1", listOf("m"), "m", 0, 0)
         val creds = object : CloudCredentials {
             override suspend fun integration(id: String) = integ.takeIf { it.id == id }
             override suspend fun apiKey(integrationId: String) = "KEY"
         }
-        return RemoteApiEngine(creds, CloudHttp(connectTimeoutMs = 2000, readTimeoutMs = 3000), retryDelayMs = { _, _ -> 0L })
+        return RemoteApiEngine(creds, http, retryDelayMs = { _, _ -> 0L })
             .also { it.current = CloudModelRef("i1", "m") }
     }
 
@@ -312,6 +316,91 @@ class RemoteApiEngineTest {
         handler = { _, s, _ -> s.getOutputStream().respond(400, body = """{"error":{"message":"bad json"}}""") }
         assertEquals(ApiErrorKind.InvalidRequest, errorOf { engine().runSys() }.kind)
         assertEquals(1, connections.get())
+    }
+
+    // ---------------- 時間切れの区別(接続 / 最初の応答 / 途中の無通信) ----------------
+
+    private fun fastTimeouts() = CloudHttp(connectTimeoutMs = 2000, firstByteTimeoutMs = 400, idleTimeoutMs = 400, pollMs = 25)
+
+    @Test fun noFirstByteIsReportedAsFirstByteTimeout() {
+        handler = { _, s, _ -> Thread.sleep(3000) } // 応答ヘッダーも本文も返さない
+        val started = System.nanoTime()
+        val e = errorOf { runBlocking { withTimeout(10_000) { engine(http = fastTimeouts()).generate(msgs, GenerationParams()).toList() } } }
+        assertEquals(ApiErrorKind.Timeout, e.kind)
+        assertEquals(com.mobileailocal.domain.TimeoutPhase.FirstByte, e.timeoutPhase)
+        assertEquals(0, e.timeoutSec) // 0.4 秒(整数の秒)
+        assertTrue("早すぎる", System.nanoTime() - started >= 350_000_000L)
+        assertEquals(1, connections.get()) // 時間切れは自動で再送しない
+    }
+
+    @Test fun slowFirstByteWithinLimitSucceeds() {
+        // ヘッダーのあと最初の文字まで 0.25 秒かかっても、最初の応答の待ち(0.4 秒)の中なら成功する
+        handler = { _, s, _ ->
+            val o = s.getOutputStream(); o.sseHead(); Thread.sleep(250); o.sse(chunk("late")); o.sse("data: [DONE]\n\n")
+        }
+        assertEquals(listOf("late"), engine(http = fastTimeouts()).run())
+    }
+
+    @Test fun stallAfterFirstTextIsReportedAsIdleTimeout() {
+        handler = { _, s, _ ->
+            val o = s.getOutputStream(); o.sseHead(); o.sse(chunk("a"))
+            Thread.sleep(3000) // 以後は無通信
+        }
+        val got = mutableListOf<String>()
+        val e = errorOf {
+            runBlocking { withTimeout(10_000) { engine(http = fastTimeouts()).generate(msgs, GenerationParams()).collect { got += it } } }
+        }
+        assertEquals(ApiErrorKind.Timeout, e.kind)
+        assertEquals(com.mobileailocal.domain.TimeoutPhase.Idle, e.timeoutPhase)
+        assertEquals(listOf("a"), got)
+        assertEquals(1, connections.get())
+    }
+
+    @Test fun cancelWhileWaitingForFirstByteIsImmediate() {
+        val closed = CountDownLatch(1)
+        handler = { _, s, _ ->
+            // 応答を返さず待つ。クライアントが切ると read が -1 になる
+            try { if (s.getInputStream().read() < 0) closed.countDown() } catch (_: Exception) { closed.countDown() }
+        }
+        val eng = engine(http = CloudHttp(connectTimeoutMs = 2000, firstByteTimeoutMs = 60_000, idleTimeoutMs = 60_000, pollMs = 25))
+        val started = System.nanoTime()
+        runBlocking {
+            val job = launch(kotlinx.coroutines.Dispatchers.Default) { eng.generate(msgs, GenerationParams()).toList() }
+            kotlinx.coroutines.delay(300L)
+            job.cancel()
+            withTimeout(3000) { job.join() }
+        }
+        assertTrue("中止が遅い", System.nanoTime() - started < 2_500_000_000L)
+        assertTrue("接続が閉じられていない", closed.await(3, TimeUnit.SECONDS))
+    }
+
+    // ---------------- Gemini の推論量(reasoning_effort) ----------------
+
+    @Test fun reasoningEffortIsSentOnlyForGemini() {
+        handler = { _, s, _ -> val o = s.getOutputStream(); o.sseHead(); o.sse(chunk("ok")); o.sse("data: [DONE]\n\n") }
+        val gem = engine(ProviderType.Gemini).also { it.reasoningEffort = { "low" } }
+        assertEquals(listOf("ok"), gem.run())
+        assertEquals("low", JSONObject(requestBodies[0]).getString("reasoning_effort"))
+        val oai = engine(ProviderType.OpenAi).also { it.reasoningEffort = { "low" } }
+        assertEquals(listOf("ok"), oai.run())
+        assertFalse(JSONObject(requestBodies[1]).has("reasoning_effort"))
+        // 設定が空(null)なら、Gemini でも送らない
+        assertEquals(listOf("ok"), engine(ProviderType.Gemini).run())
+        assertFalse(JSONObject(requestBodies[2]).has("reasoning_effort"))
+    }
+
+    @Test fun reasoningEffortRejectedIsDroppedAndRemembered() {
+        handler = { n, s, _ ->
+            val o = s.getOutputStream()
+            if (n == 0) o.respond(400, body = """{"error":{"message":"Unknown field: reasoning_effort is not supported for this model"}}""")
+            else { o.sseHead(); o.sse(chunk("ok")); o.sse("data: [DONE]\n\n") }
+        }
+        val gem = engine(ProviderType.Gemini).also { it.reasoningEffort = { "low" } }
+        assertEquals(listOf("ok"), gem.run())
+        assertTrue(JSONObject(requestBodies[0]).has("reasoning_effort"))
+        assertFalse(JSONObject(requestBodies[1]).has("reasoning_effort"))
+        assertEquals(listOf("ok"), gem.run())
+        assertFalse(JSONObject(requestBodies[2]).has("reasoning_effort"))
     }
 
     @Test fun retryDelays() {

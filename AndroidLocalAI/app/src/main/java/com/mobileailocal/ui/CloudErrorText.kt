@@ -33,6 +33,13 @@ fun cloudErrorUi(kind: ApiErrorKind): CloudErrorUi = when (kind) {
 
 private val billingActions = listOf(CloudErrorAction.OpenSettings, CloudErrorAction.OpenProviderConsole)
 
+/** 時間切れの種別ごとの説明(%1$d は待った秒数)。 */
+fun timeoutPhaseRes(p: com.mobileailocal.domain.TimeoutPhase): Int = when (p) {
+    com.mobileailocal.domain.TimeoutPhase.Connect -> R.string.cloud_timeout_connect
+    com.mobileailocal.domain.TimeoutPhase.FirstByte -> R.string.cloud_timeout_first_byte
+    com.mobileailocal.domain.TimeoutPhase.Idle -> R.string.cloud_timeout_idle
+}
+
 /** 「詳細」に出す提供側の情報(原文)。何も無ければ null。コード・状態・メッセージ・解除日時・request id。 */
 fun cloudErrorDetail(e: ApiError): String? {
     val lines = buildList {

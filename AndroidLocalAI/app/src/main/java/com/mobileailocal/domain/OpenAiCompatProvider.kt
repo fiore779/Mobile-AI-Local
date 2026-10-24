@@ -43,6 +43,8 @@ class OpenAiCompatProvider(
         val body = JSONObject().put("model", req.model).put("stream", true).put("messages", msgs)
         req.params.temperature?.let { body.put("temperature", it.toDouble()) }
         req.params.topP?.let { body.put("top_p", it.toDouble()) }
+        // 推論量は Gemini の OpenAI 互換のプリセットだけが使う(公式で minimal / low / medium / high の対応を確認)
+        req.params.reasoningEffort?.let { body.put("reasoning_effort", it) }
         body.put(if (req.params.useMaxCompletionTokens) "max_completion_tokens" else "max_tokens", req.params.maxTokens)
         return HttpRequestSpec(
             url = req.baseUrl.trimEnd('/') + "/chat/completions",

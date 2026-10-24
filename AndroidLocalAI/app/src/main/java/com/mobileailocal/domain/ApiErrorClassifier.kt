@@ -110,6 +110,7 @@ object ApiErrorClassifier {
      */
     fun fromException(e: Throwable, midStream: Boolean): ApiError = when {
         e is ApiError -> e
+        e is CloudTimeoutException -> ApiError(ApiErrorKind.Timeout, timeoutPhase = e.phase, timeoutSec = e.seconds)
         e is SocketTimeoutException -> ApiError(ApiErrorKind.Timeout)
         e is IOException && midStream -> ApiError(ApiErrorKind.StreamCut)
         e is IOException -> ApiError(ApiErrorKind.Network)

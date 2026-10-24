@@ -267,4 +267,15 @@
     <string name="api_account_err_recent">基於安全考量,請先登出並重新登入,再次刪除帳號。</string>
     <string name="cloud_form_signin_required">請先使用 Google 登入(設定 > API 連線)。</string>
     <string name="api_models_show_all">顯示所有模型(包括語音、圖像與嵌入模型)</string>
+    <string name="cloud_waiting">正在等待回覆…(模型可能正在思考)%1$d 秒</string>
+    <string name="cloud_timeout_connect">連線失敗(%1$d 秒)</string>
+    <string name="cloud_timeout_first_byte">遲遲沒有收到回覆(%1$d 秒)</string>
+    <string name="cloud_timeout_idle">回覆中途停止(%1$d 秒無資料)</string>
+    <string name="api_gemini_effort">Gemini 推理量</string>
+    <string name="api_gemini_effort_desc">僅用於 Google Gemini 預設。調低後回覆更快(請求逾時時有用)。並非所有模型都支援。</string>
+    <string name="api_effort_auto">模型預設(不傳送)</string>
+    <string name="api_effort_minimal">最低</string>
+    <string name="api_effort_low">低</string>
+    <string name="api_effort_medium">中</string>
+    <string name="api_effort_high">高</string>
 </resources>

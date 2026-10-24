@@ -417,7 +417,8 @@ Firestore の構造（案 B）:
    1. `current` から連携・キーを取得（`keys.get`。null なら `ApiError(AuthInvalid)`）。
    2. `CloudParams` を作る（9 章）。
    3. `provider.buildStreamRequest(...)` で `HttpRequestSpec` を作る。
-   4. `CloudHttp` で接続する。接続時間切れ 15 秒、読み取り時間切れ 60 秒（行が 60 秒来なければ `Timeout`。`設計書.md` 19.6 の既定 60 秒）。
+   4. `CloudHttp` で接続する。時間切れは 3 種類に分け、`ApiError.timeoutPhase` と待った秒数を「詳細」に出す。(a) 接続（Connect）15 秒。(b) 最初の応答が来ない（FirstByte）**120 秒**：リクエストを送ってから、本文の最初のバイトが来るまで。推論（thinking）型のモデルは最初の文字まで 60 秒を超えることがあるため、ストリーム途中より長くした。(c) 途中で止まった（Idle）60 秒：最初のバイトの後に、データが来ない時間。`HttpURLConnection` の `readTimeout` は接続後に切り替えられないため、見張りのコルーチン（250ms ごと）が時間を数え、超えたら接続を切る（`CloudTimeoutState`）。取り消しも同じ見張りが接続を切るので、待っている間でも中止がすぐ効く。HTTP 504/408 は提供元の原文を詳細に出す。待っている間（最初の文字が来るまで）、チャット画面に「応答を待っています…（モデルが考えている場合があります）」と経過秒を出す。時間切れは自動では再送しない。
+      - Gemini の OpenAI 互換の推論量：公式（`ai.google.dev/gemini-api/docs/openai`、2026-10-24）に、`reasoning_effort`（`minimal` / `low` / `medium` / `high`）が Gemini の思考レベルに対応すること、未指定ならモデルの既定になること、`"none"` は 2.5 系でのみ使えること（Gemini 2.5 Pro と 3 系は思考を切れない）が書かれている。そこで、**Gemini のプリセットだけ**に、設定（API連携画面）で `minimal`〜`high` を送れるようにした（既定は「送らない」）。本文に reasoning / thinking の語を含む 400 が返ったら、指定を外して再送し、そのモデルは送らない。`"none"` は対応モデルが限られるため選択肢に入れていない。
    5. 応答コードが 200 以外なら、本文（最大 64KB）を読み、`provider.classify(...)` の結果を投げる。
    6. 200 なら、1 行ずつ読み、`SseParser` で `event`/`data` にして `provider.parseEvent` に渡し、`Text` を `emit`、`Done` で完了、`Failure` なら投げる。
    7. ストリームが `Done` なしで終わった（EOF）なら `StreamCut` を投げる。

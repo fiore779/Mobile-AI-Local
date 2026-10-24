@@ -123,7 +123,8 @@ fun ApiAddScreen(onDone: () -> Unit, vm: ApiAddViewModel = viewModel()) {
         s.testError?.let { err ->
             val ui = cloudErrorUi(err.kind)
             Text(stringResource(ui.messageRes), color = MaterialTheme.colorScheme.error)
-            cloudErrorDetail(err)?.let {
+            val phase = err.timeoutPhase?.let { stringResource(timeoutPhaseRes(it), err.timeoutSec ?: 0) }
+            listOfNotNull(phase, cloudErrorDetail(err)).takeIf { it.isNotEmpty() }?.joinToString("\n")?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             // 上限・課金の失敗でも、キーは有効なので保存はできる

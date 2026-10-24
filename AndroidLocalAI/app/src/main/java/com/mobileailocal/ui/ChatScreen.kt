@@ -69,6 +69,7 @@ import com.mobileailocal.domain.MessageSegment
 import com.mobileailocal.domain.ReportIntent
 import com.mobileailocal.domain.Role
 import com.mobileailocal.domain.ThinkingParser
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -253,6 +254,26 @@ fun ChatScreen(
                         )
                     }
                 }
+            }
+        }
+        // クラウドの応答を待っている間(最初の文字が来るまで)。推論型のモデルは考えるのに時間がかかる
+        val lastMsg = visible.lastOrNull()
+        if (state.generating && lastMsg != null && lastMsg.role == Role.Assistant &&
+            lastMsg.origin == Origin.Cloud && lastMsg.content.isBlank()
+        ) {
+            var waited by remember { mutableStateOf(0) }
+            LaunchedEffect(Unit) { while (true) { delay(1000); waited++ } }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(R.string.cloud_waiting, waited),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         state.cloudError?.let { err ->
@@ -461,7 +482,10 @@ private fun CloudErrorBlock(err: ApiError, hasProviderPage: Boolean, onAction: (
         if (hasProviderPage) u else u.copy(actions = u.actions - CloudErrorAction.OpenProviderConsole)
     }
     var open by remember(err) { mutableStateOf(false) }
-    val detail = remember(err) { cloudErrorDetail(err) }
+    val base = remember(err) { cloudErrorDetail(err) }
+    // 時間切れは、接続 / 最初の応答 / 途中の無通信のどれかを詳細に出す
+    val phase = err.timeoutPhase?.let { stringResource(timeoutPhaseRes(it), err.timeoutSec ?: 0) }
+    val detail = listOfNotNull(phase, base).takeIf { it.isNotEmpty() }?.joinToString("\n")
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         Text(stringResource(ui.messageRes), color = MaterialTheme.colorScheme.error)
         Row(verticalAlignment = Alignment.CenterVertically) {

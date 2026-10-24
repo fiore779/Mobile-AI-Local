@@ -267,4 +267,15 @@
     <string name="api_account_err_recent">For security, please sign out, sign in again, and then retry deleting the account.</string>
     <string name="cloud_form_signin_required">Sign in with Google first (Settings > API connections).</string>
     <string name="api_models_show_all">Show all models (including speech, image and embedding models)</string>
+    <string name="cloud_waiting">Waiting for the response… (the model may be thinking) %1$d s</string>
+    <string name="cloud_timeout_connect">Could not connect (%1$d s)</string>
+    <string name="cloud_timeout_first_byte">No response arrived (%1$d s)</string>
+    <string name="cloud_timeout_idle">The response stopped partway (%1$d s without data)</string>
+    <string name="api_gemini_effort">Gemini reasoning effort</string>
+    <string name="api_gemini_effort_desc">Applies to the Google Gemini preset only. Lower values answer faster (useful when requests time out). Not available for every model.</string>
+    <string name="api_effort_auto">Model default (not sent)</string>
+    <string name="api_effort_minimal">Minimal</string>
+    <string name="api_effort_low">Low</string>
+    <string name="api_effort_medium">Medium</string>
+    <string name="api_effort_high">High</string>
 </resources>

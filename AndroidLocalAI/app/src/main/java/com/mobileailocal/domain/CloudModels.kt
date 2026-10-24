@@ -22,6 +22,8 @@ data class CloudParams(
     val maxTokens: Int,
     /** OpenAI 互換で max_tokens を拒否されたとき、max_completion_tokens の名前で送る。 */
     val useMaxCompletionTokens: Boolean = false,
+    /** 推論量(reasoning_effort)。Gemini のプリセットだけが使う。null なら送らない(モデルの既定)。 */
+    val reasoningEffort: String? = null,
 )
 
 /** 送る内容のスナップショット。 */
@@ -59,6 +61,12 @@ sealed interface StreamEvent {
     data class Failure(val error: ApiError) : StreamEvent
 }
 
+/** 時間切れの種別: 接続 / 最初の応答が来ない / 途中で止まった。 */
+enum class TimeoutPhase { Connect, FirstByte, Idle }
+
+/** 区別された時間切れ(CloudHttp が投げる)。SocketTimeoutException として扱われ、ApiErrorKind.Timeout になる。 */
+class CloudTimeoutException(val phase: TimeoutPhase, val seconds: Int) : java.net.SocketTimeoutException("timeout: $phase after ${seconds}s")
+
 enum class ApiErrorKind {
     AuthInvalid,
     PermissionDenied,
@@ -87,6 +95,9 @@ class ApiError(
     val retryAfterSec: Long? = null,
     val resetAt: String? = null,
     val requestId: String? = null,
+    /** 時間切れの種別と、待った秒数(クライアント側の Timeout のとき)。 */
+    val timeoutPhase: TimeoutPhase? = null,
+    val timeoutSec: Int? = null,
 ) : Exception("ApiError($kind, status=$httpStatus, code=$providerCode)") {
     override fun toString(): String = message ?: "ApiError($kind)"
 }
