@@ -16,7 +16,7 @@ fun CloudConsentDialog(type: ProviderType, host: String?, onAccept: () -> Unit, 
     else stringResource(providerNameRes(type))
     AlertDialog(
         onDismissRequest = onDecline,
-        title = { Text(stringResource(R.string.cloud_consent_title)) },
+        title = { Text(stringResource(R.string.cloud_consent_title, name)) },
         text = { Text(stringResource(R.string.cloud_consent_body, name)) },
         confirmButton = { TextButton(onClick = onAccept) { Text(stringResource(R.string.cloud_consent_accept)) } },
         dismissButton = { TextButton(onClick = onDecline) { Text(stringResource(R.string.common_cancel)) } },
