@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Mobile AI Local: クラウド連携の「メタデータ」だけを、本人(Firebase Auth の uid)の配下に保存する。
+// API キー・トークン・会話内容の項目は作れない(許可リスト以外の項目を含む書き込みは拒否する)。
+// 項目名は app の data/CloudAccountStore.kt の IntegrationDoc.ALLOWED_FIELDS と一致させること。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid}/integrations/{integrationId} {
+
+      function signedInAs(u) {
+        return request.auth != null && request.auth.uid == u;
+      }
+
+      function validDoc(d) {
+        return d.keys().hasOnly(['type', 'displayName', 'baseUrl', 'enabledModels', 'lastModel', 'createdAt', 'updatedAt', 'schemaVersion'])
+          && d.keys().hasAll(['type', 'displayName', 'baseUrl', 'enabledModels', 'createdAt', 'updatedAt', 'schemaVersion'])
+          && d.type in ['OpenAi', 'Anthropic', 'Gemini', 'OpenAiCompatCustom']
+          && d.displayName is string && d.displayName.size() >= 1 && d.displayName.size() <= 40
+          && d.baseUrl is string && d.baseUrl.size() <= 500 && d.baseUrl.matches('^https://[^?#@]+$')
+          && d.enabledModels is list && d.enabledModels.size() >= 1 && d.enabledModels.size() <= 10
+          && (!('lastModel' in d) || (d.lastModel is string && d.lastModel.size() <= 200))
+          && d.createdAt is int && d.updatedAt is int
+          && d.schemaVersion == 1;
+      }
+
+      allow read: if signedInAs(uid);
+      allow create, update: if signedInAs(uid) && validDoc(request.resource.data);
+      allow delete: if signedInAs(uid);
+    }
+
+    // それ以外はすべて拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

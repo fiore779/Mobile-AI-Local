@@ -252,4 +252,17 @@
     <string name="cloud_error_consent_required">Consent for sending to this service was withdrawn. Select the model again to confirm.</string>
     <string name="cloud_form_key_required_for_url">The server address was changed. Enter the API key again so the old key is not sent to the new address.</string>
     <string name="cloud_form_save_failed">Could not save the connection (the key could not be stored securely).</string>
+    <string name="api_signin_why">To use a cloud AI, sign in with your Google account. Your list of connections (without keys) is saved to the account, so it can be restored on another device. Local models do not need sign-in.</string>
+    <string name="api_signin_play_services_note">Sign-in requires Google Play services and a Google account on this device.</string>
+    <string name="api_signin_button">Sign in with Google</string>
+    <string name="api_signout">Sign out</string>
+    <string name="api_account_signed_in">Signed in: %1$s</string>
+    <string name="api_sync_note">The connection list (without keys) is saved to your account. API keys stay on this device only.</string>
+    <string name="api_delete_account">Delete account and cloud data</string>
+    <string name="api_delete_account_confirm">Delete your account data for this app? The saved connection list on the server, and the connections and keys on this device, will be deleted. Your chat history stays.</string>
+    <string name="api_signin_err_no_credential">No Google account was found, or Google Play services is not available on this device.</string>
+    <string name="api_signin_err_network">Could not connect. Check your network connection and try again.</string>
+    <string name="api_signin_err_other">Sign-in or account deletion failed. Please try again.</string>
+    <string name="api_account_err_recent">For security, please sign out, sign in again, and then retry deleting the account.</string>
+    <string name="cloud_form_signin_required">Sign in with Google first (Settings > API connections).</string>
 </resources>

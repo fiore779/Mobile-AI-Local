@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.mobileailocal.App
 import com.mobileailocal.R
 import com.mobileailocal.data.CloudHttp
-import com.mobileailocal.data.LOCAL_UID
 import com.mobileailocal.domain.ApiError
 import com.mobileailocal.domain.ApiErrorClassifier
 import com.mobileailocal.domain.CloudInputs
@@ -60,13 +59,13 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
 
     init {
         if (editId != null) viewModelScope.launch {
-            val i = a.cloudRepo.get(LOCAL_UID, editId) ?: return@launch
+            val i = a.cloudRepo.get(a.uid(), editId) ?: return@launch
             createdAt = i.createdAt
             originalBaseUrl = i.baseUrl
             _state.value = ApiAddState(
                 editingId = i.id, type = i.type, name = i.displayName, baseUrl = i.baseUrl,
                 fetched = i.enabledModels, selected = i.enabledModels.toSet(),
-                hasStoredKey = a.cloudKeys.has(LOCAL_UID, i.id),
+                hasStoredKey = a.cloudKeys.has(a.uid(), i.id),
             )
         }
     }
@@ -76,7 +75,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         // カスタムは送信先が入力されてから、保存の前に同意を取る(接続先のホストを本文に出すため)
         if (type == ProviderType.OpenAiCompatCustom) { applyType(type); return }
         viewModelScope.launch {
-            if (a.cloudConsent.isAccepted(LOCAL_UID, type)) applyType(type)
+            if (a.cloudConsent.isAccepted(a.uid(), type)) applyType(type)
             else _state.update { it.copy(consentFor = type) }
         }
     }
@@ -85,7 +84,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         val s = _state.value
         val t = s.consentFor ?: return
         viewModelScope.launch {
-            a.cloudConsent.accept(LOCAL_UID, t, CloudInputs.consentScope(t, s.baseUrl))
+            a.cloudConsent.accept(a.uid(), t, CloudInputs.consentScope(t, s.baseUrl))
             _state.update { it.copy(consentFor = null, consentHost = null) }
             if (saveAfterConsent) { saveAfterConsent = false; save() } else applyType(t)
         }
@@ -149,7 +148,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         viewModelScope.launch {
             // 接続先を変えたときは、保存済みのキーを新しい接続先へ送らない
             val key = s.key.ifEmpty {
-                if (urlChanged(s)) "" else s.editingId?.let { a.cloudKeys.get(LOCAL_UID, it) }.orEmpty()
+                if (urlChanged(s)) "" else s.editingId?.let { a.cloudKeys.get(a.uid(), it) }.orEmpty()
             }
             try {
                 val spec = p.buildListModelsRequest(s.baseUrl.trim(), key)
@@ -187,6 +186,8 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
     fun save() {
         val s = _state.value
         val type = s.type ?: return
+        // クラウド連携の保存はサインインしているときだけ(連携はアカウントごとに記録する)
+        if (a.accounts.uid.value == null) { _state.update { it.copy(formError = R.string.cloud_form_signin_required) }; return }
         urlProblem(s)?.let { e -> _state.update { it.copy(formError = e) }; return }
         val name = CloudInputs.cleanDisplayName(s.name)
         val needsKey = type != ProviderType.OpenAiCompatCustom && s.key.isEmpty() && !s.hasStoredKey
@@ -203,7 +204,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
         viewModelScope.launch {
             // 同意がまだなら、保存の前に確認する(カスタムは接続先ホストごと)
             val scope = CloudInputs.consentScope(type, s.baseUrl)
-            if (!a.cloudConsent.isAccepted(LOCAL_UID, type, scope)) {
+            if (!a.cloudConsent.isAccepted(a.uid(), type, scope)) {
                 saveAfterConsent = true
                 _state.update { it.copy(consentFor = type, consentHost = scope.ifEmpty { null }) }
                 return@launch
@@ -219,8 +220,8 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
             )
             // 接続テストで上限・課金の失敗が出ていても、キーは有効なので保存する(設計書 7.2)
             try {
-                if (s.key.isNotEmpty()) a.cloudKeys.put(LOCAL_UID, id, s.key)
-                a.cloudRepo.upsert(LOCAL_UID, item)
+                if (s.key.isNotEmpty()) a.cloudKeys.put(a.uid(), id, s.key)
+                a.cloudRepo.upsert(a.uid(), item)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -228,6 +229,7 @@ class ApiAddViewModel(app: Application, handle: SavedStateHandle) : AndroidViewM
                 _state.update { it.copy(saving = false, formError = R.string.cloud_form_save_failed) }
                 return@launch
             }
+            a.requestSync() // アカウントへ連携メタデータ(キーを除く)を記録する。オフラインなら次回に回る
             _state.update { it.copy(saving = false, saved = true, key = "") }
         }
     }

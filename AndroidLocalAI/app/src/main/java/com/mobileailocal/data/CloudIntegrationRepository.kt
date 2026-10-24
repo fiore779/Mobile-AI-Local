@@ -2,13 +2,15 @@ package com.mobileailocal.data
 
 import com.mobileailocal.domain.CloudCredentials
 import com.mobileailocal.domain.CloudIntegration
+import com.mobileailocal.domain.LocalIntegration
+import com.mobileailocal.domain.SyncState
 import com.mobileailocal.domain.ProviderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
-/** フェーズ 1 の仮 uid(サインインなし)。実際のアカウントに切り替えるまで固定値を使う。 */
+/** フェーズ 1 の仮 uid(サインイン導入前の端末内データ)。サインイン後は使わず、取り込まずに片付ける(設計書 O11)。 */
 const val LOCAL_UID = "local"
 
 /** 連携情報の読み書き(Room のローカル写し)。アカウントストアとの同期は後のタスクで足す。 */
@@ -29,6 +31,27 @@ class CloudIntegrationRepository(private val dao: CloudIntegrationDao) {
     }
 
     suspend fun delete(uid: String, id: String) = withContext(Dispatchers.IO) { dao.delete(uid, id) }
+
+    // ---- 同期用 ----
+
+    /** 削除待ちを含むすべての行(同期の計画用)。 */
+    suspend fun allForSync(uid: String): List<LocalIntegration> = withContext(Dispatchers.IO) {
+        dao.allRows(uid).mapNotNull { e -> e.toDomain()?.let { LocalIntegration(it, SyncState.of(e.syncState)) } }
+    }
+
+    /** 削除を記録する(サーバーへ伝わるまで行を残す)。サインイン中でなければ、すぐ消す。 */
+    suspend fun markDeleted(uid: String, id: String) = withContext(Dispatchers.IO) {
+        dao.setSyncState(uid, id, SyncState.Deleted.code)
+    }
+
+    suspend fun markSynced(uid: String, id: String) = withContext(Dispatchers.IO) {
+        dao.setSyncState(uid, id, SyncState.Synced.code)
+    }
+
+    /** サーバーから取り込んだ内容を保存する(同期済み)。 */
+    suspend fun saveSynced(uid: String, item: CloudIntegration) = withContext(Dispatchers.IO) {
+        dao.upsert(item.toEntity(uid, SyncState.Synced.code))
+    }
 
     suspend fun deleteAll(uid: String) = withContext(Dispatchers.IO) { dao.deleteAll(uid) }
 }
@@ -54,7 +77,7 @@ internal fun CloudIntegrationEntity.toDomain(): CloudIntegration? {
 class RepositoryCredentials(
     private val repo: CloudIntegrationRepository,
     private val keys: CloudKeyStore,
-    private val uid: () -> String = { LOCAL_UID },
+    private val uid: () -> String,
 ) : CloudCredentials {
     override suspend fun integration(id: String) = repo.get(uid(), id)
     override suspend fun apiKey(integrationId: String) = keys.get(uid(), integrationId)

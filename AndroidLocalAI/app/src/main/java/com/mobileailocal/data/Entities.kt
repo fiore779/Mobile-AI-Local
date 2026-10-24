@@ -132,6 +132,13 @@ interface CloudIntegrationDao {
     @Query("SELECT * FROM cloud_integration WHERE uid = :uid AND syncState != 'deleted' ORDER BY createdAt")
     fun list(uid: String): List<CloudIntegrationEntity>
 
+    /** 削除待ちも含む(同期用)。 */
+    @Query("SELECT * FROM cloud_integration WHERE uid = :uid ORDER BY createdAt")
+    fun allRows(uid: String): List<CloudIntegrationEntity>
+
+    @Query("UPDATE cloud_integration SET syncState = :state WHERE uid = :uid AND id = :id")
+    fun setSyncState(uid: String, id: String, state: String)
+
     @Query("SELECT * FROM cloud_integration WHERE uid = :uid AND id = :id")
     fun byId(uid: String, id: String): CloudIntegrationEntity?
 

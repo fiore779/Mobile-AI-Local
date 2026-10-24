@@ -3,6 +3,17 @@ package com.mobileailocal
 import android.app.ActivityManager
 import android.app.Application
 import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.mobileailocal.data.AccountError
+import com.mobileailocal.data.AccountRepository
+import com.mobileailocal.data.CloudSync
+import com.mobileailocal.data.FirestoreAccountStore
+import com.mobileailocal.data.SIGNED_OUT_UID
+import com.mobileailocal.domain.CloudIntegration
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import com.mobileailocal.data.CloudConsent
 import com.mobileailocal.data.CloudHttp
 import com.mobileailocal.data.CloudIntegrationRepository
@@ -62,6 +73,8 @@ class App : Application() {
     lateinit var cloudKeys: CloudKeyStore; private set
     lateinit var cloudRepo: CloudIntegrationRepository; private set
     lateinit var cloudConsent: CloudConsent; private set
+    lateinit var accounts: AccountRepository; private set
+    lateinit var cloudSync: CloudSync; private set
     lateinit var models: ModelRepository; private set
     lateinit var downloads: DownloadTracker; private set
     lateinit var deviceMonitor: DeviceMonitor; private set
@@ -125,9 +138,9 @@ class App : Application() {
         val seq = cloudReqSeq.incrementAndGet()
         _pendingConsent.value = null
         scope.launch {
-            val integ = cloudRepo.get(LOCAL_UID, ref.integrationId)
+            val integ = cloudRepo.get(uid(), ref.integrationId)
             val consentScope = integ?.let { CloudInputs.consentScope(it.type, it.baseUrl) }.orEmpty()
-            val accepted = integ != null && cloudConsent.isAccepted(LOCAL_UID, integ.type, consentScope)
+            val accepted = integ != null && cloudConsent.isAccepted(uid(), integ.type, consentScope)
             // 待っている間に、さらに新しい選択(クラウドでもローカルでも)が来ていたら、そちらに任せる
             if (cloudReqSeq.get() != seq) return@launch
             if (integ == null) { _modelError.value = localizedString(R.string.cloud_error_integration_missing); return@launch }
@@ -139,10 +152,10 @@ class App : Application() {
     /** 同意を取り消す。その連携を選択中なら未選択に戻す(次に使うときは再度確認する)。 */
     fun revokeCloudConsent(type: ProviderType, consentScope: String) {
         scope.launch {
-            cloudConsent.revoke(LOCAL_UID, type, consentScope)
+            cloudConsent.revoke(uid(), type, consentScope)
             val cur = _selectedModel.value
             if (cur is ModelSelection.Cloud) {
-                val integ = cloudRepo.get(LOCAL_UID, cur.ref.integrationId)
+                val integ = cloudRepo.get(uid(), cur.ref.integrationId)
                 if (integ != null && integ.type == type && CloudInputs.consentScope(integ.type, integ.baseUrl) == consentScope) {
                     selectModel(null)
                 }
@@ -153,15 +166,15 @@ class App : Application() {
     /** 送信の直前に、選択中のクラウドへの同意が有効かを確かめる(取り消し後の送信を防ぐ)。 */
     suspend fun cloudSendAllowed(): Boolean {
         val cur = _selectedModel.value as? ModelSelection.Cloud ?: return true
-        val integ = cloudRepo.get(LOCAL_UID, cur.ref.integrationId) ?: return false
-        return cloudConsent.isAccepted(LOCAL_UID, integ.type, CloudInputs.consentScope(integ.type, integ.baseUrl))
+        val integ = cloudRepo.get(uid(), cur.ref.integrationId) ?: return false
+        return cloudConsent.isAccepted(uid(), integ.type, CloudInputs.consentScope(integ.type, integ.baseUrl))
     }
 
     fun acceptPendingConsent() {
         val p = _pendingConsent.value ?: return
         _pendingConsent.value = null
         scope.launch {
-            cloudConsent.accept(LOCAL_UID, p.providerType, p.scope)
+            cloudConsent.accept(uid(), p.providerType, p.scope)
             selectCloudModel(p.ref)
         }
     }
@@ -180,10 +193,10 @@ class App : Application() {
         selectJob = scope.launch {
             withContext(NonCancellable) { previous?.cancelAndJoin() }
             if (selectSeq.get() != mine) return@launch
-            val integ = cloudRepo.get(LOCAL_UID, ref.integrationId)
+            val integ = cloudRepo.get(uid(), ref.integrationId)
             // キーが要る種別でキーが無いときは、今の選択を変えずにエラーだけ出す(キー無しのカスタムは選べる)
             val keyOk = integ != null &&
-                (integ.type == ProviderType.OpenAiCompatCustom || cloudKeys.has(LOCAL_UID, ref.integrationId))
+                (integ.type == ProviderType.OpenAiCompatCustom || cloudKeys.has(uid(), ref.integrationId))
             if (integ == null || !keyOk) {
                 if (selectSeq.get() == mine) {
                     _modelError.value = localizedString(
@@ -198,19 +211,68 @@ class App : Application() {
             remoteEngine.current = ref
             _selectedModel.value = ModelSelection.Cloud(ref)
             settings.setDefaultModel(ModelSelection.Cloud(ref).encode())
-            cloudRepo.upsert(LOCAL_UID, integ.copy(lastModel = ref.model))
+            cloudRepo.upsert(uid(), integ.copy(lastModel = ref.model))
         }
     }
 
-    /** 連携を削除する。選択中なら未選択にし、キー・行を消す(会話のメッセージは残す)。 */
+    /** 現在のアカウントの uid。サインアウト中は空文字(この値の行・キーは無いので、何も見つからない)。 */
+    fun uid(): String = accounts.uid.value ?: SIGNED_OUT_UID
+
+    /** 現在のアカウントの連携の一覧(アカウントが変わると切り替わる。サインアウト中は空)。 */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun integrationsFlow(): Flow<List<CloudIntegration>> =
+        accounts.uid.flatMapLatest { u -> if (u == null) flowOf(emptyList()) else cloudRepo.observe(u) }
+
+    /** 端末とアカウントの連携メタデータを合わせる(失敗・オフラインは黙って次回に回す)。 */
+    fun requestSync() {
+        val u = accounts.uid.value ?: return
+        ioScope.launch { cloudSync.sync(u) }
+    }
+
+    /**
+     * サインイン導入前に端末内(uid = "local")へ作った連携とキーは、アカウントへ取り込まず片付ける
+     * (設計書 O11: 公開前のデータなので引き継がない)。
+     */
+    private suspend fun discardLegacyLocalData() {
+        val legacy = cloudRepo.allForSync(LOCAL_UID)
+        if (legacy.isEmpty()) return
+        cloudKeys.deleteAllFor(LOCAL_UID)
+        cloudRepo.deleteAll(LOCAL_UID)
+    }
+
+    /** 連携を削除する。選択中なら未選択にし、キーを消し、行は削除待ちにしてサーバーへ伝える(会話のメッセージは残す)。 */
     fun deleteIntegration(id: String) {
         scope.launch {
+            val u = uid()
             val cur = _selectedModel.value
             if (cur is ModelSelection.Cloud && cur.ref.integrationId == id) selectModel(null)
-            cloudKeys.delete(LOCAL_UID, id)
-            cloudRepo.delete(LOCAL_UID, id)
+            cloudKeys.delete(u, id)
+            cloudRepo.markDeleted(u, id)
             markCloudWarning(id, null)
+            // オフラインなら削除待ちのまま残り、次の同期で伝わる(一覧には出ない)
+            if (accounts.uid.value != null) cloudSync.sync(u)
         }
+    }
+
+    /**
+     * アカウントと、サーバー上の連携メタデータ、端末内のこのアカウントの連携・キーを削除する(Play のアカウント削除要件)。
+     * 失敗は AccountError(オフラインは Network、直近のサインインが必要なら RecentLoginRequired)。
+     */
+    suspend fun deleteAccountAndData() {
+        val u = accounts.uid.value ?: return
+        try {
+            cloudSync.deleteRemoteAll(u)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            throw AccountError.Network
+        }
+        if (_selectedModel.value is ModelSelection.Cloud) selectModel(null)
+        withContext(Dispatchers.IO) {
+            cloudKeys.deleteAllFor(u)
+            cloudRepo.deleteAll(u)
+        }
+        accounts.deleteAccount()
     }
 
     /** チャットで使うモデルの id(未選択は null)。 */
@@ -234,7 +296,11 @@ class App : Application() {
         cloudKeys = CloudKeyStore(this)
         cloudRepo = CloudIntegrationRepository(db.cloudIntegrationDao())
         cloudConsent = CloudConsent(this)
-        remoteEngine = RemoteApiEngine(RepositoryCredentials(cloudRepo, cloudKeys), CloudHttp())
+        // Firebase は自動初期化を切ってある(マニフェスト)。メインプロセスでだけ、ここで初期化する
+        FirebaseApp.initializeApp(this)
+        accounts = AccountRepository(this, ioScope)
+        cloudSync = CloudSync(cloudRepo, FirestoreAccountStore(FirebaseFirestore.getInstance()), cloudKeys)
+        remoteEngine = RemoteApiEngine(RepositoryCredentials(cloudRepo, cloudKeys) { uid() }, CloudHttp())
         models = ModelRepository(this, db.modelDao())
         downloads = DownloadTracker(this, models, settings)
         deviceMonitor = DeviceMonitor(this)
@@ -260,17 +326,32 @@ class App : Application() {
                     if (id != null && localEngine.isLoaded) selectModel(id)
                 }
         }
+        // アカウントの変化(サインイン・サインアウト・切り替え)に追従する
+        scope.launch {
+            var previous: String? = accounts.uid.value
+            accounts.uid.collect { now ->
+                if (now != previous) {
+                    // 選択中のクラウドは、アカウントが変わったら未選択に戻す(別アカウントの連携は使わない)
+                    if (_selectedModel.value is ModelSelection.Cloud) selectModel(null)
+                    previous = now
+                }
+                if (now != null) {
+                    withContext(Dispatchers.IO) { discardLegacyLocalData() }
+                    cloudSync.sync(now)
+                }
+            }
+        }
         // 前回選んだモデルを復元する(ファイルが消えていれば未選択に戻す)
         scope.launch {
             val saved = settings.settings.first().defaultModelId
             when (val sel = decodeModelSelection(saved)) {
                 is ModelSelection.Cloud -> {
                     // 連携とキーが残っていれば復元する。通信はしない
-                    val integ = cloudRepo.get(LOCAL_UID, sel.ref.integrationId)
+                    val integ = cloudRepo.get(uid(), sel.ref.integrationId)
                     // 同意が有効で、キーが要る種別ならキーが残っているときだけ復元する
                     val ok = integ != null &&
-                        (integ.type == ProviderType.OpenAiCompatCustom || cloudKeys.has(LOCAL_UID, integ.id)) &&
-                        cloudConsent.isAccepted(LOCAL_UID, integ.type, CloudInputs.consentScope(integ.type, integ.baseUrl))
+                        (integ.type == ProviderType.OpenAiCompatCustom || cloudKeys.has(uid(), integ.id)) &&
+                        cloudConsent.isAccepted(uid(), integ.type, CloudInputs.consentScope(integ.type, integ.baseUrl))
                     if (ok) selectCloudModel(sel.ref) else selectModel(null)
                 }
                 is ModelSelection.Local -> {

@@ -252,4 +252,17 @@
     <string name="cloud_error_consent_required">已撤回向该服务发送内容的同意。请重新选择模型并确认。</string>
     <string name="cloud_form_key_required_for_url">服务器地址已更改。请重新输入 API 密钥,以免旧密钥发送到新地址。</string>
     <string name="cloud_form_save_failed">无法保存连接(无法安全存储密钥)。</string>
+    <string name="api_signin_why">使用云端 AI 需要登录 Google 账号。连接列表(不含密钥)会保存到该账号,可在其他设备上恢复。仅使用本地模型无需登录。</string>
+    <string name="api_signin_play_services_note">登录需要 Google Play 服务以及设备上的 Google 账号。</string>
+    <string name="api_signin_button">使用 Google 登录</string>
+    <string name="api_signout">退出登录</string>
+    <string name="api_account_signed_in">已登录:%1$s</string>
+    <string name="api_sync_note">连接列表(不含密钥)会保存到您的账号。API 密钥只保存在本设备上。</string>
+    <string name="api_delete_account">删除账号和云端连接信息</string>
+    <string name="api_delete_account_confirm">要删除此应用的账号数据吗?服务器上的连接列表以及本设备上的连接和密钥将被删除。聊天记录会保留。</string>
+    <string name="api_signin_err_no_credential">未找到 Google 账号,或此设备无法使用 Google Play 服务。</string>
+    <string name="api_signin_err_network">无法连接,请检查网络后重试。</string>
+    <string name="api_signin_err_other">登录或删除账号失败,请重试。</string>
+    <string name="api_account_err_recent">出于安全考虑,请先退出登录并重新登录,然后再次删除账号。</string>
+    <string name="cloud_form_signin_required">请先使用 Google 登录(设置 > API 连接)。</string>
 </resources>

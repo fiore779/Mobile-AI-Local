@@ -12,7 +12,6 @@ import com.mobileailocal.data.DeviceStatus
 import com.mobileailocal.data.ConversationEntity
 import com.mobileailocal.data.MessageEntity
 import com.mobileailocal.data.ModelEntity
-import com.mobileailocal.data.LOCAL_UID
 import com.mobileailocal.domain.ApiError
 import com.mobileailocal.domain.ApiErrorKind
 import com.mobileailocal.domain.CLOUD_MAX_INPUT_CHARS
@@ -114,7 +113,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 連携の一覧(モデルバーの「クラウド」区画用)。 */
     val cloudIntegrations: StateFlow<List<CloudIntegration>> =
-        a.cloudRepo.observe(LOCAL_UID).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        a.integrationsFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** クラウドのモデルを選ぶ(同意が済んでいなければ、先に確認ダイアログが出る)。上限・課金系の警告が残っていれば再度出す。 */
     fun selectCloud(ref: CloudModelRef) {

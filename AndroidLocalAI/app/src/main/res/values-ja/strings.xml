@@ -252,4 +252,17 @@
     <string name="cloud_error_consent_required">この接続先へ送ることへの同意が取り消されています。モデルを選び直して確認してください。</string>
     <string name="cloud_form_key_required_for_url">接続先のアドレスを変えました。古いキーを新しい接続先へ送らないよう、API キーを入れ直してください。</string>
     <string name="cloud_form_save_failed">接続先を保存できませんでした(キーを安全に保存できませんでした)。</string>
+    <string name="api_signin_why">クラウドのAIを使うには、Google アカウントでサインインします。接続先の一覧(キーを除く)がアカウントに保存され、別の端末でも復元できます。ローカルモデルだけを使う場合、サインインは不要です。</string>
+    <string name="api_signin_play_services_note">サインインには、Google Play 開発者サービスと、端末の Google アカウントが必要です。</string>
+    <string name="api_signin_button">Google でサインイン</string>
+    <string name="api_signout">サインアウト</string>
+    <string name="api_account_signed_in">サインイン中: %1$s</string>
+    <string name="api_sync_note">接続先の一覧(キーを除く)がアカウントに保存されます。API キーはこの端末にだけ保存されます。</string>
+    <string name="api_delete_account">アカウントとクラウド上の連携情報を削除</string>
+    <string name="api_delete_account_confirm">このアプリのアカウント情報を削除しますか? サーバー上の接続先の一覧と、この端末の接続先・キーが削除されます。会話履歴は残ります。</string>
+    <string name="api_signin_err_no_credential">Google アカウントが見つからないか、この端末で Google Play 開発者サービスが使えません。</string>
+    <string name="api_signin_err_network">接続できません。ネットワークを確認してやり直してください。</string>
+    <string name="api_signin_err_other">サインインまたはアカウントの削除に失敗しました。もう一度お試しください。</string>
+    <string name="api_account_err_recent">セキュリティのため、いったんサインアウトして入り直してから、もう一度アカウントを削除してください。</string>
+    <string name="cloud_form_signin_required">先に Google でサインインしてください(設定 > API連携)。</string>
 </resources>
