@@ -278,4 +278,9 @@
     <string name="api_effort_medium">中</string>
     <string name="api_effort_high">高</string>
     <string name="chat_label_local">端末内</string>
+    <string name="settings_privacy_policy">プライバシーポリシー</string>
+    <string name="privacy_policy_unavailable">プライバシーポリシーを表示できませんでした。</string>
+    <string name="api_delete_web_link">アプリを使わずに削除を依頼する方法</string>
+    <string name="api_delete_web_email">アプリを使わずに削除を依頼する場合は、サインインした Google アカウントのメールアドレスから %1$s へ、データの削除を希望する旨をメールでお送りください。サーバー上のアカウント情報を削除します。</string>
+    <string name="api_signin_disclosure">サインインすると、メールアドレスとユーザー ID が、接続先の一覧(提供元・表示名・アドレス・モデル名)とともに Firebase(Google の認証・データベースサービス)に保存されます。API キーと会話の内容は保存されません(キーはこの端末にだけ残ります)。削除は、サインイン後にこの画面の「アカウントと連携情報を削除」から、またはアプリを使わずにできます(プライバシーポリシーを参照)。</string>
 </resources>

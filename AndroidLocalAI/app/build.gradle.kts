@@ -113,4 +113,12 @@ gradle.taskGraph.whenReady {
 // Room のスキーマ(移行の検証用)を app/schemas に出力する
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+// ストア掲載と同じプライバシーポリシーを、アプリに同梱する(assets/privacy/)。公開 URL が無い間の画面表示に使う
+val copyPrivacyPolicies by tasks.registering(Copy::class) {
+    from(rootProject.projectDir.parentFile.resolve("store/privacy")) { include("privacy-policy.*.md") }
+    into(layout.buildDirectory.dir("generated/policyAssets/privacy"))
+}
+android.sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/policyAssets"))
+tasks.named("preBuild") { dependsOn(copyPrivacyPolicies) }
+
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }

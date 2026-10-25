@@ -45,12 +45,12 @@ If an answer is a problem, you can contact the developer with the app's report f
 - You can delete conversations at any time on the History screen.
 - You can delete downloaded models on the Models screen.
 - You can delete an API-integration connection at any time under "API integration" in Settings. Its API key is then removed from your device.
-- Information tied to your Google account (email address, user ID, API-integration metadata) can be deleted at any time with "Delete account and integration data" in Settings. A way to request deletion without using the app will be added before release: kzt.app.support@gmail.com
+- Information tied to your Google account (email address, user ID, API-integration metadata) can be deleted at any time with "Delete account and cloud data" in Settings. The steps, what is and is not deleted, and how to request deletion if you cannot use the app are described on the deletion page: {{deletion page URL}} (email for requests: kzt.app.support@gmail.com)
 - Uninstalling the app removes everything it stored on your device (delete the information tied to your Google account separately, as described above).
 - Deleting content already sent to a cloud provider is subject to that provider's own procedures.
 
 ## 7. About AI output
-AI answers can be wrong or inappropriate. Check anything important yourself.
+AI answers can be wrong or inappropriate. Check anything important yourself. The app does not bundle AI models; you install them yourself, and you are responsible for complying with the license (terms of use) of the models you install.
 
 ## 8. Children
 The app is not primarily directed at children under 13.

@@ -35,6 +35,7 @@ fun SettingsScreen(
     vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onOpenExtensions: () -> Unit = {},
     onOpenApi: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {},
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val storage by vm.storage.collectAsStateWithLifecycle()
@@ -204,12 +205,28 @@ fun SettingsScreen(
 
         SectionHeader(stringResource(R.string.settings_about))
         Text(stringResource(R.string.about_version, vm.versionName))
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenPrivacy() }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.settings_privacy_policy), modifier = Modifier.weight(1f))
+            Text("›", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         SectionHeader(stringResource(R.string.settings_licenses))
         // ライブラリ名は固有名なので strings.xml に入れず固定文字列にする
         LicenseRow("llama.cpp", "MIT License")
-        LicenseRow("AndroidX (Jetpack Compose, Room, DataStore, Navigation)", "Apache License 2.0")
+        // ライセンス名は各ライブラリの POM(Google Maven / Maven Central)の記載で確認済み(2026-10-25)
+        LicenseRow("AndroidX (Jetpack Compose, Room, DataStore, Navigation, Lifecycle, Activity)", "Apache License 2.0")
+        LicenseRow("AndroidX Credentials (credentials, credentials-play-services-auth)", "Apache License 2.0")
         LicenseRow("Kotlin, kotlinx.coroutines", "Apache License 2.0")
+        LicenseRow("Google Identity (googleid)", "Android Software Development Kit License\nhttps://developer.android.com/studio/terms.html")
+        LicenseRow("Google Play services (play-services-auth, base, basement, tasks, fido, and related)", "Android Software Development Kit License\nhttps://developer.android.com/studio/terms.html")
+        LicenseRow("Firebase Authentication", "Android Software Development Kit License\nhttps://developer.android.com/studio/terms.html")
+        LicenseRow("Firebase (Cloud Firestore, Common, Components, and related)", "Apache License 2.0")
+        LicenseRow("gRPC (grpc-java, including the OkHttp-based transport), PerfMark", "Apache License 2.0")
+        LicenseRow("Protocol Buffers (protobuf-javalite)", "BSD 3-Clause License")
+        LicenseRow("Guava, Gson, Okio, JSR305, Error Prone annotations", "Apache License 2.0")
         // 著作権表示は上流の原文で確認済み(2026-10-23)
         LicenseRow("QuickJS (bellard/quickjs)", "MIT License\nCopyright (c) 2017-2021 Fabrice Bellard\nCopyright (c) 2017-2021 Charlie Gordon")
         LicenseRow("quickjs-kt (dokar3)", "Apache License 2.0\nCopyright 2024 dokar3")

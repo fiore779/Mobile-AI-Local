@@ -278,4 +278,9 @@
     <string name="api_effort_medium">中</string>
     <string name="api_effort_high">高</string>
     <string name="chat_label_local">设备端</string>
+    <string name="settings_privacy_policy">隐私政策</string>
+    <string name="privacy_policy_unavailable">无法显示隐私政策。</string>
+    <string name="api_delete_web_link">不使用应用请求删除的方法</string>
+    <string name="api_delete_web_email">如需在不使用应用的情况下请求删除,请用登录所用的 Google 账号邮箱向 %1$s 发送邮件,说明希望删除数据。我们会删除服务器上的账号信息。</string>
+    <string name="api_signin_disclosure">登录后,您的邮箱地址和用户 ID 会连同连接列表(提供商、显示名称、地址和模型名称)一起保存在 Firebase(Google 的身份验证和数据库服务)中。API 密钥和对话内容不会保存到那里(密钥只保存在本设备上)。您可以在登录后通过本页的“删除账号和云端连接信息”删除,也可以不使用应用来删除(详见隐私政策)。</string>
 </resources>

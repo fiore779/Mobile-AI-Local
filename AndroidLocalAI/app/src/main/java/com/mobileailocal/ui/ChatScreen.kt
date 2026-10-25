@@ -860,7 +860,7 @@ private val BodyLineHeight = 24.sp
 
 /** 最小限の Markdown(見出し・箇条書き・太字・インラインコード)で本文を出す。 */
 @Composable
-private fun MarkdownText(text: String) {
+internal fun MarkdownText(text: String) {
     val blocks = remember(text) { MarkdownLite.parse(text) }
     val codeBg = MaterialTheme.colorScheme.surfaceVariant
     fun inlines(list: List<MdInline>) = buildAnnotatedString {

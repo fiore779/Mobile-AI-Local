@@ -2,4 +2,9 @@
 <resources>
     <!-- 不適切な出力の報告先。公開前に本物のメールアドレスへ差し替える(プレースホルダー) -->
     <string name="report_email" translatable="false">kzt.app.support@gmail.com</string>
+    <!-- アプリを使わずにアカウント削除を依頼する Web ページの URL。未設定(空)の間は、リンクの代わりにメールでの依頼方法を案内する。
+         設計書.md には書かない(公開 URL が決まったらここだけ差し替える)。言語ごとに変えるときは values-ja などに同名で置く -->
+    <string name="account_deletion_url" translatable="false"></string>
+    <!-- プライバシーポリシーの公開 URL。未設定(空)の間は、アプリに同梱した全文(assets/privacy/)を画面で表示する -->
+    <string name="privacy_policy_url" translatable="false"></string>
 </resources>

@@ -278,4 +278,9 @@
     <string name="api_effort_medium">Medium</string>
     <string name="api_effort_high">High</string>
     <string name="chat_label_local">On-device</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_unavailable">The privacy policy could not be displayed.</string>
+    <string name="api_delete_web_link">How to request deletion without using the app</string>
+    <string name="api_delete_web_email">To request deletion without using the app, email %1$s from the Google account address you signed in with, and state that you want your data deleted. We will delete your account data from the server.</string>
+    <string name="api_signin_disclosure">When you sign in, your email address and user ID are saved in Firebase (Google\'s authentication and database service), along with your list of connections (provider, display name, address and model names). API keys and your conversations are NOT saved there; keys stay only on this device. You can delete this data here after signing in ("Delete account and cloud data"), or without the app (see the Privacy Policy).</string>
 </resources>

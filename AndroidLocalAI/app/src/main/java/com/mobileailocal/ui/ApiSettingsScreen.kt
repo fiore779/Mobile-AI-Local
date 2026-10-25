@@ -53,6 +53,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  */
 @Composable
 fun ApiSettingsScreen(
+    onOpenPrivacy: () -> Unit,
     onAdd: () -> Unit,
     onOpen: (String) -> Unit,
     vm: ApiSettingsViewModel = viewModel(),
@@ -87,11 +88,19 @@ fun ApiSettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp, bottom = 12.dp),
             )
+            // サインインの前に、保存する情報・保存先・保存しないもの・削除方法を知らせる
+            Text(
+                stringResource(R.string.api_signin_disclosure),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.settings_privacy_policy)) }
             Button(
                 onClick = { context.findActivity()?.let(vm::signIn) },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.api_signin_button)) }
+            AccountDeletionHelp(context)
             return@Column
         }
 
@@ -169,6 +178,7 @@ fun ApiSettingsScreen(
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
         ) { Text(stringResource(R.string.api_delete_account), color = MaterialTheme.colorScheme.error) }
+        AccountDeletionHelp(context)
     }
 
     if (confirmDeleteAccount) {
@@ -186,6 +196,25 @@ fun ApiSettingsScreen(
             dismissButton = {
                 TextButton(onClick = { confirmDeleteAccount = false }) { Text(stringResource(R.string.common_cancel)) }
             },
+        )
+    }
+}
+
+/**
+ * アプリを使わずにアカウント削除を依頼する方法。公開 URL(account_deletion_url)があればリンク、
+ * 未設定(空)の間は、メールでの依頼方法を案内する。
+ */
+@Composable
+private fun AccountDeletionHelp(context: Context) {
+    val url = stringResource(R.string.account_deletion_url)
+    if (url.isNotBlank()) {
+        TextButton(onClick = { openUrl(context, url) }) { Text(stringResource(R.string.api_delete_web_link)) }
+    } else {
+        Text(
+            stringResource(R.string.api_delete_web_email, stringResource(R.string.report_email)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
