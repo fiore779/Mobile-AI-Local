@@ -10,7 +10,7 @@ The following is stored only in the app's private storage (not visible to other 
 - AI model files you download
 - Settings (theme, language, generation settings, the Wi-Fi-only option, and so on)
 - If you set up API integration: connection details (provider type, display name, connection URL, model names to use) and the API key you entered. The API key is encrypted with the device's Android Keystore, is not sent anywhere except to the provider when the app connects to it, and is excluded from backups.
-- If you set a work folder: identifying information about the folder (its URI and name). The contents of the folder are stored in your device's storage; the app does not send them to the developer
+- Files in the work folder (a dedicated folder the app creates automatically in its internal storage). Other apps cannot see it, and it is removed when you uninstall the app. The developer does not receive it
 - Conversation summaries (when a conversation gets long, older parts are summarized and one summary is stored per conversation)
 
 ## 2. Internet connections
@@ -32,20 +32,20 @@ In these connections, Hugging Face receives your IP address and basic connection
 - **API keys and conversation content are not stored in this database.** Keys exist only on each device, so you must re-enter the key on another device.
 - Access to this data is restricted to your own account.
 
-**Work folder (only if you set one) and conversation summaries:**
+**Work folder (only if you turn it on) and conversation summaries:**
 - The contents of files in the work folder are given only to the on-device model and are not transmitted. When you use a cloud AI, the work folder cannot be used and file contents are not sent (if you switch to a cloud AI in a conversation where the on-device model read files earlier, the read results are omitted).
 - When a conversation gets long, older parts are summarized; with a cloud AI this adds an extra request to the provider (the content sent is the same as in a normal chat request).
 - When you use a cloud AI, the contents of work-folder files themselves are not sent, but the AI's replies or the conversation summary may contain parts of them.
-- If you choose a folder that is synced with a cloud storage service, the files are saved to that service.
+- If you share or export a work-folder file, the resulting file is outside the app's control (it is handled by the app or service you send it to).
 
 ## 3. What we do not collect
-The app does not ask you to create an account to use local models; it asks you to sign in with Google only when you use API integration (Section 2). It contains no advertising, no usage analytics, no crash reporting, and nothing that tracks you. It does not access your location, contacts, photos, microphone, or camera. The app does not access any files other than the work folder you choose.
+The app does not ask you to create an account to use local models; it asks you to sign in with Google only when you use API integration (Section 2). It contains no advertising, no usage analytics, no crash reporting, and nothing that tracks you. It does not access your location, contacts, photos, microphone, or camera. The app does not access files on your device other than its own work folder (in the app's internal storage).
 
 ## 4. Permissions
 - Internet: to search for and download models, and to communicate with the cloud AI you set up
 - Network state: to apply the "download only on Wi-Fi" option
 - Foreground service: to keep an answer being generated (or, for cloud AI, received) when you leave the app (on Android 13 and later no notification is shown; on Android 12 and earlier a minimal, unobtrusive notification appears)
-- Storage permissions: not used. The work folder is only the single folder you pick in Android's folder picker
+- Storage permissions: not used. The work folder is in the app's internal storage. Sharing and exporting happen only when you act, through Android's share sheet and save-location picker
 
 ## 5. Reporting inappropriate output
 If an answer is a problem, you can contact the developer with the app's report function. It creates a draft email, containing the answer you are reporting, in your email app. **It reaches the developer only if you send it.**
@@ -57,7 +57,7 @@ If an answer is a problem, you can contact the developer with the app's report f
 - Information tied to your Google account (email address, user ID, API-integration metadata) can be deleted at any time with "Delete account and cloud data" in Settings. The steps, what is and is not deleted, and how to request deletion if you cannot use the app are described on the deletion page: {{deletion page URL}} (email for requests: kzt.app.support@gmail.com)
 - Uninstalling the app removes everything it stored on your device (delete the information tied to your Google account separately, as described above).
 - Deleting content already sent to a cloud provider is subject to that provider's own procedures.
-- Files created in the work folder are in your own storage and are not removed when you uninstall the app. You can remove the folder setting from Settings > Work folder.
+- Files in the work folder are in the app's internal storage and are removed when you uninstall the app. You can delete files one by one, or all of them, from Settings > Work folder. Files you shared or exported remain after uninstalling.
 - Deleting a conversation also deletes its summary.
 
 ## 7. About AI output

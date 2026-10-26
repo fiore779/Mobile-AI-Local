@@ -29,10 +29,6 @@ data class AppSettings(
     val autoCompress: Boolean = true,
     /** 作業フォルダ(AI のファイル操作)を使うか。既定は無効。 */
     val workspaceEnabled: Boolean = false,
-    /** 作業フォルダの URI(Uri.toString())。永続権限は OS 側が持つ。 */
-    val workspaceTreeUri: String = "",
-    /** 表示用のフォルダ名。 */
-    val workspaceName: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -49,8 +45,6 @@ class SettingsRepository(private val context: Context) {
         val jsEnabled = booleanPreferencesKey("js_enabled")
         val autoCompress = booleanPreferencesKey("auto_compress")
         val workspaceEnabled = booleanPreferencesKey("workspace_enabled")
-        val workspaceTreeUri = stringPreferencesKey("workspace_tree_uri")
-        val workspaceName = stringPreferencesKey("workspace_name")
         val geminiEffort = stringPreferencesKey("gemini_reasoning_effort")
     }
 
@@ -65,8 +59,6 @@ class SettingsRepository(private val context: Context) {
             geminiReasoningEffort = p[K.geminiEffort] ?: "",
             autoCompress = p[K.autoCompress] ?: true,
             workspaceEnabled = p[K.workspaceEnabled] ?: false,
-            workspaceTreeUri = p[K.workspaceTreeUri] ?: "",
-            workspaceName = p[K.workspaceName] ?: "",
             params = GenerationParams(
                 temperature = p[K.temperature] ?: d.temperature,
                 topP = p[K.topP] ?: d.topP,
@@ -83,17 +75,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setJsEnabled(v: Boolean) = context.dataStore.edit { it[K.jsEnabled] = v }
     suspend fun setAutoCompress(v: Boolean) = context.dataStore.edit { it[K.autoCompress] = v }
     suspend fun setWorkspaceEnabled(v: Boolean) = context.dataStore.edit { it[K.workspaceEnabled] = v }
-    /** フォルダを選んだ。有効／無効は変えない。 */
-    suspend fun setWorkspaceFolder(uri: String, name: String) = context.dataStore.edit {
-        it[K.workspaceTreeUri] = uri
-        it[K.workspaceName] = name
-    }
-    /** 解除。URI と名前を消し、無効にする。 */
-    suspend fun clearWorkspace() = context.dataStore.edit {
-        it.remove(K.workspaceTreeUri)
-        it.remove(K.workspaceName)
-        it[K.workspaceEnabled] = false
-    }
     suspend fun setGeminiReasoningEffort(v: String) = context.dataStore.edit { it[K.geminiEffort] = v }
     suspend fun setDefaultModel(v: String?) = context.dataStore.edit { p -> set(p, v) }
     suspend fun setParams(v: GenerationParams) = context.dataStore.edit {

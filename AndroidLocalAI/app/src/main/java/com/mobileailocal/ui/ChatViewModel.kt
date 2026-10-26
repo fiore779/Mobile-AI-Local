@@ -183,7 +183,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     init {
         // 往復の途中で作業フォルダの設定(有効／フォルダ)が変わったら、往復を止める
         viewModelScope.launch {
-            a.settings.settings.map { it.workspaceEnabled to it.workspaceTreeUri }.distinctUntilChanged().drop(1).collect {
+            a.settings.settings.map { it.workspaceEnabled }.distinctUntilChanged().drop(1).collect {
                 if (toolsActiveSend && _state.value.generating) stop()
             }
         }
@@ -405,7 +405,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         toolTurns++
                         formatErrors = 0
                         val call = find.call
-                        val outcome = executeTool(call, appSettings.workspaceTreeUri, appSettings.params.contextLength, WorkspaceLimits.MAX_WRITE_BYTES_PER_SEND - writeTotal)
+                        val outcome = executeTool(call, appSettings.params.contextLength, WorkspaceLimits.MAX_WRITE_BYTES_PER_SEND - writeTotal)
                         _state.value = _state.value.copy(toolStatus = null, pendingToolApproval = null)
                         if (outcome is ToolOutcome.Failed && outcome.code == "EACCES") {
                             _state.value = _state.value.copy(toolStopNotice = ToolStopNotice.NoAccess)
@@ -557,8 +557,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
      * ツールを 1 回実行する(設計書 6.4 の 3〜6)。書き込みは WorkspaceToolRunner.executeApproved だけを通り、
      * 承認(CompletableDeferred の結果)がなければ書かない。承認の待ちは APPROVAL_TIMEOUT_MS で拒否になる。
      */
-    private suspend fun executeTool(call: ToolCall, treeUri: String, contextLength: Int, remainingWriteBytes: Int): ToolOutcome {
-        val runner = a.workspaceRunner(treeUri)
+    private suspend fun executeTool(call: ToolCall, contextLength: Int, remainingWriteBytes: Int): ToolOutcome {
+        val runner = a.workspaceRunner()
         val path = ToolResult.pathOf(call)
         val op = ToolResult.opOf(call)
         return when (call) {
@@ -689,10 +689,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     /** 実行の状態(App が持つので、画面の再作成や背景化をまたいで残る)。 */
     val jsState: StateFlow<JsRunState> = a.jsRunManager.state
 
-    /** 作業フォルダ名(書き込みの承認ダイアログ用)。 */
-    val workspaceName: StateFlow<String> = a.settings.settings.map { it.workspaceName }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     /** 確認ダイアログで「実行」が押されたコードを実行する。受け付けたら true。 */
     fun runJs(key: BlockKey, code: String): Boolean = a.jsRunManager.run(key, code)

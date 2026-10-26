@@ -299,16 +299,11 @@
     <!-- 作業フォルダ -->
     <string name="settings_workspace_entry">工作資料夾</string>
     <string name="workspace_title">工作資料夾</string>
-    <string name="workspace_desc">裝置上的本機模型可以讀取您所選資料夾中的文字檔,並新增或取代檔案。無法存取資料夾以外的內容,也不能刪除檔案、處理二進位檔,或搭配雲端模型使用。每次寫入都會先徵求您的確認(讀取和列出不需確認)。如果選擇與雲端儲存同步的資料夾,檔案會儲存到該服務。同時啟用 JavaScript 執行時,建議增加上下文長度。</string>
-    <string name="workspace_pick">選擇資料夾</string>
-    <string name="workspace_clear">解除</string>
-    <string name="workspace_none">未選擇</string>
+    <string name="workspace_desc">裝置上的本機模型可以讀取應用程式工作資料夾中的文字檔,並新增或取代檔案。該資料夾由應用程式在自己的內部儲存空間中自動建立,其他應用程式看不到,解除安裝應用程式後會被刪除。無法存取資料夾以外的內容,也不能刪除檔案、處理二進位檔,或搭配雲端模型使用。每次寫入都會先徵求您的確認(讀取和列出不需確認)。您可以在下方檢視、分享、匯出或刪除檔案。已分享或匯出的檔案不再由應用程式管理。同時啟用 JavaScript 執行時,建議增加上下文長度。</string>
     <string name="workspace_enable">允許 AI 操作檔案</string>
-    <string name="workspace_no_permission">已失去對該資料夾的存取權限,請重新選擇。</string>
-    <string name="workspace_error_permission">無法取得該資料夾的存取權限。</string>
     <string name="workspace_cloud_unavailable">雲端模型無法使用。</string>
-    <string name="workspace_first_enable_title">允許 AI 使用此資料夾嗎?</string>
-    <string name="workspace_first_enable_body">AI 將可以讀取此資料夾中的檔案。不會用於雲端模型。要繼續嗎?</string>
+    <string name="workspace_first_enable_title">允許 AI 使用工作資料夾嗎?</string>
+    <string name="workspace_first_enable_body">AI 將可以讀取和寫入應用程式工作資料夾中的檔案。不會用於雲端模型。要繼續嗎?</string>
     <string name="tool_card_list">工作資料夾:列出 %s</string>
     <string name="tool_card_read">工作資料夾:讀取 %s</string>
     <string name="tool_card_write">工作資料夾:寫入 %s</string>
@@ -322,7 +317,6 @@
     <string name="tool_status_writing">正在寫入 %s…</string>
     <string name="tool_status_listing">正在列出 %s…</string>
     <string name="tool_approve_title">要寫入檔案嗎?</string>
-    <string name="tool_approve_folder">工作資料夾:%s</string>
     <string name="tool_approve_new">將新增檔案(%1$d 位元組)。</string>
     <string name="tool_approve_overwrite">將取代既有檔案(目前 %1$d 位元組 → 新的 %2$d 位元組)。</string>
     <string name="tool_approve_more">…還有 %d 個字元</string>
@@ -330,6 +324,20 @@
     <string name="tool_approve_no">不寫入</string>
     <string name="tool_stop_turn_limit">單次回覆中的檔案操作過多,已停止。</string>
     <string name="tool_stop_format">AI 多次未依正確格式進行檔案操作,已停止。</string>
-    <string name="tool_stop_no_access">無法存取該資料夾,請在設定中重新選擇。</string>
+    <string name="tool_stop_no_access">無法存取工作資料夾。</string>
     <string name="cloud_confirm_file_note">不會傳送工作資料夾中的檔案內容。但 AI 的回覆或摘要中可能包含其中一部分。</string>
+    <string name="workspace_usage">已使用:%s</string>
+    <string name="workspace_up">上一層</string>
+    <string name="workspace_empty">資料夾是空的。</string>
+    <string name="workspace_file_binary">此檔案不是文字檔,無法顯示。</string>
+    <string name="workspace_view_truncated">僅顯示前 %d 個字元。</string>
+    <string name="workspace_share">分享</string>
+    <string name="workspace_export">匯出</string>
+    <string name="workspace_delete">刪除</string>
+    <string name="workspace_delete_all">全部刪除</string>
+    <string name="workspace_delete_title">要刪除嗎?</string>
+    <string name="workspace_delete_body">要刪除 %s 嗎?此操作無法復原。</string>
+    <string name="workspace_delete_all_body">將刪除工作資料夾中的所有檔案。此操作無法復原。</string>
+    <string name="workspace_export_done">已匯出。</string>
+    <string name="workspace_export_failed">無法匯出檔案。</string>
 </resources>

@@ -299,16 +299,11 @@
     <!-- 作業フォルダ -->
     <string name="settings_workspace_entry">Work folder</string>
     <string name="workspace_title">Work folder</string>
-    <string name="workspace_desc">A local (on-device) model can list and read text files in the folder you choose, and create new files or replace existing ones. It cannot go outside the folder, delete files, handle binary files, or work with cloud models. Every write asks for your confirmation; reading and listing do not. If you pick a folder that is synced to a cloud storage service, files are saved to that service. With both this and JavaScript enabled, a larger context length is recommended.</string>
-    <string name="workspace_pick">Choose folder</string>
-    <string name="workspace_clear">Remove</string>
-    <string name="workspace_none">Not selected</string>
+    <string name="workspace_desc">A local (on-device) model can list and read text files in the app\'s work folder, and create new files or replace existing ones. The folder is created by the app inside its private storage, so other apps cannot see it, and it is removed when you uninstall the app. The model cannot go outside the folder, delete files, handle binary files, or work with cloud models. Every write asks for your confirmation; reading and listing do not. You can view, share, export, or delete the files below. Files you share or export are outside the app\'s control. With both this and JavaScript enabled, a larger context length is recommended.</string>
     <string name="workspace_enable">Let the AI use files</string>
-    <string name="workspace_no_permission">Access to the folder was lost. Please choose it again.</string>
-    <string name="workspace_error_permission">Could not get access to that folder.</string>
     <string name="workspace_cloud_unavailable">Not available with cloud models.</string>
-    <string name="workspace_first_enable_title">Let the AI use this folder?</string>
-    <string name="workspace_first_enable_body">The AI will be able to read files in this folder. This is not used with cloud models. Continue?</string>
+    <string name="workspace_first_enable_title">Let the AI use the work folder?</string>
+    <string name="workspace_first_enable_body">The AI will be able to read and write files in the app\'s work folder. This is not used with cloud models. Continue?</string>
     <string name="tool_card_list">Work folder: list %s</string>
     <string name="tool_card_read">Work folder: read %s</string>
     <string name="tool_card_write">Work folder: write %s</string>
@@ -322,7 +317,6 @@
     <string name="tool_status_writing">Writing %s…</string>
     <string name="tool_status_listing">Listing %s…</string>
     <string name="tool_approve_title">Write this file?</string>
-    <string name="tool_approve_folder">Work folder: %s</string>
     <string name="tool_approve_new">A new file will be created (%1$d bytes).</string>
     <string name="tool_approve_overwrite">This replaces an existing file (now %1$d bytes → new %2$d bytes).</string>
     <string name="tool_approve_more">…%d more characters</string>
@@ -330,6 +324,20 @@
     <string name="tool_approve_no">Don\'t write</string>
     <string name="tool_stop_turn_limit">Stopped: too many file operations in one message.</string>
     <string name="tool_stop_format">Stopped: the AI kept using the file tags incorrectly.</string>
-    <string name="tool_stop_no_access">Cannot access the work folder. Please choose it again in Settings.</string>
+    <string name="tool_stop_no_access">Cannot access the work folder.</string>
     <string name="cloud_confirm_file_note">File contents from your work folder are not sent. However, the AI\'s replies or the summary may contain parts of them.</string>
+    <string name="workspace_usage">Used: %s</string>
+    <string name="workspace_up">Up</string>
+    <string name="workspace_empty">The folder is empty.</string>
+    <string name="workspace_file_binary">This file is not a text file, so it cannot be shown.</string>
+    <string name="workspace_view_truncated">Only the first %d characters are shown.</string>
+    <string name="workspace_share">Share</string>
+    <string name="workspace_export">Export</string>
+    <string name="workspace_delete">Delete</string>
+    <string name="workspace_delete_all">Delete everything</string>
+    <string name="workspace_delete_title">Delete this?</string>
+    <string name="workspace_delete_body">Delete %s? This cannot be undone.</string>
+    <string name="workspace_delete_all_body">All files in the work folder will be deleted. This cannot be undone.</string>
+    <string name="workspace_export_done">Exported.</string>
+    <string name="workspace_export_failed">Could not export the file.</string>
 </resources>

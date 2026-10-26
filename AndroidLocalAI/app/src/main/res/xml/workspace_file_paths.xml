@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- filesDir/workspace 配下だけを公開する(js-workspace やモデルなど他の場所は公開しない) -->
+    <files-path name="workspace" path="workspace/" />
+</paths>

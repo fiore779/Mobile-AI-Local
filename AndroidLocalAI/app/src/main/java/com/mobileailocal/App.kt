@@ -50,7 +50,7 @@ import com.mobileailocal.data.ModelRepository
 import java.io.File
 import com.mobileailocal.data.SettingsRepository
 import com.mobileailocal.data.AppSettings
-import com.mobileailocal.data.SafWorkspace
+import com.mobileailocal.data.InternalWorkspace
 import com.mobileailocal.data.WorkspaceToolRunner
 import com.mobileailocal.domain.LlamaCppEngine
 import com.mobileailocal.domain.InferenceEngine
@@ -86,13 +86,13 @@ class App : Application() {
     lateinit var downloads: DownloadTracker; private set
     lateinit var deviceMonitor: DeviceMonitor; private set
     lateinit var jsRunManager: JsRunManager; private set
-    /** 作業フォルダ(SAF。利用者が選んだ 1 つのフォルダ。JS の内部作業フォルダとは別物)。 */
-    /** 作業フォルダの実行口。URI は実行のたびに(そのときの設定値で)渡す。 */
-    fun workspaceRunner(treeUri: String): WorkspaceToolRunner = WorkspaceToolRunner(SafWorkspace(this, treeUri))
+    /** 作業フォルダ(アプリ内部領域 filesDir/workspace。アプリが自動で作る。JS の js-workspace とは別)。 */
+    val workspace: InternalWorkspace by lazy { InternalWorkspace(java.io.File(filesDir, "workspace")) }
+    fun workspaceRunner(): WorkspaceToolRunner = WorkspaceToolRunner(workspace)
 
-    /** 作業フォルダが使える状態か(設定が有効 + フォルダ選択済み + 永続権限あり)。 */
+    /** 作業フォルダが使える状態か(設定で有効にされているか。フォルダはアプリが自動で作る)。 */
     fun workspaceUsable(s: AppSettings): Boolean =
-        s.workspaceEnabled && s.workspaceTreeUri.isNotBlank() && SafWorkspace.hasPersistedPermission(this, s.workspaceTreeUri)
+        s.workspaceEnabled
 
     // 想定外の例外でアプリごと落ちないようにする(ログに残す)
     private val scope = CoroutineScope(

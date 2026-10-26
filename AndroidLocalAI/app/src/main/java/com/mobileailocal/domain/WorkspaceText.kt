@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 
-/** 作業フォルダのテキストの扱い(純 Kotlin。SafWorkspace から使う)。 */
+/** 作業フォルダのテキストの扱い(純 Kotlin。InternalWorkspace から使う)。 */
 object WorkspaceText {
     /** UTF-8 として厳密にデコードする。NUL を含む・不正なら EBINARY(置換しない)。 */
     fun decodeStrict(bytes: ByteArray): String {

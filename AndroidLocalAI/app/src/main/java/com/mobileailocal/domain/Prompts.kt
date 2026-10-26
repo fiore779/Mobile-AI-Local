@@ -57,7 +57,7 @@ object Prompts {
      * モデルへ渡すシステムプロンプト。拡張機能(JS 実行)は、クラウドの返答には「実行」を出さないので、
      * クラウド選択のときは JS の説明を足さない(設計書 6.2-4、R8)。要約は常にシステム文の中に入れる(クラウドでも足す)。
      * 順序: base + JS + 作業フォルダ(有効かつローカル) + 要約。各ブロックの間は空行。
-     * workspaceEnabled は「作業フォルダが使える状態」(設定が有効 + フォルダ選択済み + 権限あり)。
+     * workspaceEnabled は「作業フォルダが使える状態」(設定で有効にされている)。
      */
     fun systemFor(base: String, jsEnabled: Boolean, workspaceEnabled: Boolean, summary: String, cloud: Boolean): String {
         val parts = mutableListOf(base)

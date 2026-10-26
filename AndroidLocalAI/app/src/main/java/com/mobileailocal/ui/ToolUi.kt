@@ -112,16 +112,13 @@ fun ToolResultCard(content: String) {
 
 /** 書き込みの確認ダイアログ。外側タップ・戻るは「書き込まない」。「今後は確認しない」は作らない。 */
 @Composable
-fun ToolApprovalDialog(approval: ToolApproval, folderName: String, onAnswer: (Boolean) -> Unit) {
+fun ToolApprovalDialog(approval: ToolApproval, onAnswer: (Boolean) -> Unit) {
     val pv = approval.preview
     AlertDialog(
         onDismissRequest = { onAnswer(false) },
         title = { Text(stringResource(R.string.tool_approve_title)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                if (folderName.isNotBlank()) {
-                    Text(stringResource(R.string.tool_approve_folder, folderName), style = MaterialTheme.typography.bodySmall)
-                }
                 Text(pv.path, style = MaterialTheme.typography.titleSmall, fontFamily = FontFamily.Monospace)
                 Text(
                     if (pv.overwrite) stringResource(R.string.tool_approve_overwrite, pv.oldBytes ?: 0L, pv.bytes.toLong())

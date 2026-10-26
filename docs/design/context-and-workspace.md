@@ -727,3 +727,33 @@ Strata に任せる指示書には、4〜5 章の型・規則と該当の見本�
 | `docs/design/cloud-api.md` | R8 の近く | クラウドの返答にはツールのタグがあっても実行しない（js-runtime.md の P7 と同じ） |
 | `docs/release-checklist.md` | 4.4、4.10、5.3、D2 | 8.5 の表のとおり |
 | `store/privacy/privacy-policy.{ja,en,zh-CN,zh-TW}.md` | 1・2・3・6 節 | 8.5 の表のとおり |
+
+## 14. 変更（2026-10-26）: 作業フォルダを SAF から内部領域へ
+
+ユーザー決定により、B（作業フォルダ）の置き場所を次のとおり変更した。1〜13 章の B の記述のうち、SAF に関するものは本章が優先する。ツールのタグ形式・承認・上限・クラウド不可・結果の保存形式（4.5、5.1〜5.3、6.4、6.5）は変更しない。
+
+| 項目 | 変更前 | 変更後 |
+|---|---|---|
+| 置き場所 | 利用者が選んだ 1 つのフォルダ（`ACTION_OPEN_DOCUMENT_TREE`、永続 URI 権限） | `filesDir/workspace/`（アプリ内部領域。アプリが自動で作る。JS の `filesDir/js-workspace/` とは別ディレクトリ） |
+| 実装 | `SafWorkspace`（`DocumentFile`） | `InternalWorkspace`（`java.io`。`WorkspaceFiles` の実装を差し替え。`WorkspaceToolRunner`・承認フロー・上限は同じ） |
+| 依存・権限 | `androidx.documentfile`、永続 URI 権限 | `documentfile` を削除。権限なし。共有のために `FileProvider`（`android:exported="false"`、`workspace/` 配下だけを `files-path` で公開）を追加 |
+| 設定値 | `workspace_enabled`、`workspace_tree_uri`、`workspace_name` | `workspace_enabled` のみ（既定 false）。URI と名前は廃止 |
+| パス検証 | 字句検査 + ルートから 1 要素ずつ `findFile` | 字句検査（`WorkspacePath`）+ ルートから 1 要素ずつ辿る（シンボリックリンクは `EPERM` で拒否）+ `canonicalPath` が root 配下であること（Windows のジャンクション等も拒否） |
+| タイムアウト | `blockingWithTimeout`（10 秒） | 維持（待つ側だけを打ち切る。書き込みは裏で完了しうる） |
+| EACCES | 永続権限の喪失 | 内部領域を作れない等のとき。往復を止める経路は維持。画面の「権限を失った」警告と、フォルダの選択・解除は廃止 |
+
+### 14.1 作業フォルダ画面（`WorkspaceScreen`）
+
+- 有効／無効のスイッチ（既定オフ。オンにするたびに確認ダイアログ。文面は「アプリの作業フォルダのファイルを AI が読み書きできる」に変更）。クラウド不可の説明は常時表示。
+- 中身の一覧（名前・サイズ・更新日。ディレクトリは中身の合計サイズ。タップで階層をたどれる。上の階層へ戻るボタン）と、使用量の表示。
+- ファイルをタップすると内容を表示（テキストのみ。先頭 20,000 文字まで。テキストでなければ表示できない旨）。ダイアログから **共有**（`FileProvider` の content URI + `ACTION_SEND` + `FLAG_GRANT_READ_URI_PERMISSION`）、**端末へ書き出し**（`ACTION_CREATE_DOCUMENT` で利用者が選んだ場所へコピー）、**削除**。
+- 一覧の各行とダイアログから削除（確認ダイアログつき）、「すべて削除」（確認ダイアログつき。root は残す）。これらは利用者の操作だけで、モデルには削除手段が無い（U7 のまま）。
+- 利用者の操作用の関数（`browse` / `preview` / `fileFor` / `delete` / `deleteAll` / `totalBytes`）は `InternalWorkspace` の通常のメソッドで、`WorkspaceFiles`（モデル向け）には含めない。
+
+### 14.2 プライバシー・文書への影響
+
+- ファイルの内容は端末内のモデルにだけ渡り、アプリ内部領域にあるので、他のアプリから見えず、アプリを削除すると消える。利用者が共有・書き出したファイルは、アプリの管理外（送り先の扱いに従う）。ポリシー 4 言語と release-checklist 4.4・4.10・5.3 に反映済み。
+- 「クラウドと同期するフォルダを選ぶとそのサービスに保存される」の注意は不要になったので削除した。
+- 未決事項 U5（JS との関係）は「別ディレクトリのまま」で変わらない。U10（`documentfile` の依存）と U16（Play の SAF の扱い）は不要になった。
+- Strata は使えなかったため、本変更の実装はすべて implementer が行った。
+

@@ -103,7 +103,7 @@ fun SettingsScreen(
         ) {
             Text(stringResource(R.string.settings_workspace_entry), modifier = Modifier.weight(1f))
             Text(
-                stringResource(if (settings.workspaceEnabled && settings.workspaceTreeUri.isNotBlank()) R.string.settings_extensions_on else R.string.settings_extensions_off),
+                stringResource(if (settings.workspaceEnabled) R.string.settings_extensions_on else R.string.settings_extensions_off),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -299,16 +299,11 @@
     <!-- 作業フォルダ -->
     <string name="settings_workspace_entry">作業フォルダ</string>
     <string name="workspace_title">作業フォルダ</string>
-    <string name="workspace_desc">端末内のモデルが、選んだフォルダの中のテキストファイルを読み、新しく作る・置き換えることができます。フォルダの外、ファイルの削除、バイナリ、クラウドのモデルでは使えません。書き込みは毎回確認します(読み取りと一覧は確認なし)。クラウドストレージと同期するフォルダを選ぶと、ファイルはそのサービスに保存されます。JavaScript 実行も有効にする場合は、コンテキスト長を大きくすることをおすすめします。</string>
-    <string name="workspace_pick">フォルダを選ぶ</string>
-    <string name="workspace_clear">解除</string>
-    <string name="workspace_none">未選択</string>
+    <string name="workspace_desc">端末内のモデルが、アプリの作業フォルダの中のテキストファイルを読み、新しく作る・置き換えることができます。フォルダはアプリが自分の内部領域に自動で作るので、他のアプリからは見えず、アプリを削除すると消えます。フォルダの外、ファイルの削除、バイナリ、クラウドのモデルでは使えません。書き込みは毎回確認します(読み取りと一覧は確認なし)。下の一覧で、ファイルの表示・共有・書き出し・削除ができます。共有や書き出した先のファイルは、アプリの管理外です。JavaScript 実行も有効にする場合は、コンテキスト長を大きくすることをおすすめします。</string>
     <string name="workspace_enable">AI にファイル操作を許可</string>
-    <string name="workspace_no_permission">フォルダへのアクセスが無くなりました。選び直してください。</string>
-    <string name="workspace_error_permission">そのフォルダへのアクセスを取得できませんでした。</string>
     <string name="workspace_cloud_unavailable">クラウドのモデルでは使えません。</string>
-    <string name="workspace_first_enable_title">このフォルダを AI が使えるようにしますか？</string>
-    <string name="workspace_first_enable_body">AI がこのフォルダのファイルを読めるようになります。クラウドのモデルには使われません。続けますか？</string>
+    <string name="workspace_first_enable_title">作業フォルダを AI が使えるようにしますか？</string>
+    <string name="workspace_first_enable_body">AI がアプリの作業フォルダのファイルを読み書きできるようになります。クラウドのモデルには使われません。続けますか？</string>
     <string name="tool_card_list">作業フォルダ: %s の一覧</string>
     <string name="tool_card_read">作業フォルダ: %s を読み取り</string>
     <string name="tool_card_write">作業フォルダ: %s に書き込み</string>
@@ -322,7 +317,6 @@
     <string name="tool_status_writing">%s に書き込んでいます…</string>
     <string name="tool_status_listing">%s の一覧を取得しています…</string>
     <string name="tool_approve_title">ファイルを書き込みますか？</string>
-    <string name="tool_approve_folder">作業フォルダ: %s</string>
     <string name="tool_approve_new">新しいファイルを作成します(%1$d バイト)。</string>
     <string name="tool_approve_overwrite">既存のファイルを置き換えます(現在 %1$d バイト → 新しい %2$d バイト)。</string>
     <string name="tool_approve_more">…あと %d 文字</string>
@@ -330,6 +324,20 @@
     <string name="tool_approve_no">書き込まない</string>
     <string name="tool_stop_turn_limit">1 回の返答でのファイル操作が多すぎるため、止めました。</string>
     <string name="tool_stop_format">AI がファイル操作の形式を守れなかったため、止めました。</string>
-    <string name="tool_stop_no_access">フォルダにアクセスできません。設定で選び直してください。</string>
+    <string name="tool_stop_no_access">作業フォルダにアクセスできません。</string>
     <string name="cloud_confirm_file_note">作業フォルダのファイルの内容は送りません。ただし、AI の返答や要約に、その一部が含まれている場合があります。</string>
+    <string name="workspace_usage">使用量: %s</string>
+    <string name="workspace_up">上の階層へ</string>
+    <string name="workspace_empty">フォルダは空です。</string>
+    <string name="workspace_file_binary">テキストではないファイルなので、表示できません。</string>
+    <string name="workspace_view_truncated">先頭の %d 文字だけを表示しています。</string>
+    <string name="workspace_share">共有</string>
+    <string name="workspace_export">書き出し</string>
+    <string name="workspace_delete">削除</string>
+    <string name="workspace_delete_all">すべて削除</string>
+    <string name="workspace_delete_title">削除しますか？</string>
+    <string name="workspace_delete_body">%s を削除しますか？ 元に戻せません。</string>
+    <string name="workspace_delete_all_body">作業フォルダのファイルをすべて削除します。元に戻せません。</string>
+    <string name="workspace_export_done">書き出しました。</string>
+    <string name="workspace_export_failed">書き出せませんでした。</string>
 </resources>

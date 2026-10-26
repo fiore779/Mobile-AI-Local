@@ -136,7 +136,7 @@ Play Console → 「ポリシー」→「アプリのコンテンツ」。
 
 ### 4.10 その他の宣言(該当するもの)
 - ニュースアプリ、COVID-19、金融機能、健康アプリ、政府アプリ: 該当しない。
-- 権限: `INTERNET`、`ACCESS_NETWORK_STATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE` のみ。ストレージの権限（`MANAGE_EXTERNAL_STORAGE`、`READ_EXTERNAL_STORAGE` など）は宣言しない（作業フォルダは Storage Access Framework のフォルダ選択で、権限が不要）。公式の User Data / Permissions ポリシーでの扱いは、リリース前に確認する（context-and-workspace.md U16）。Play で個別の申請が必要な権限(SMS、位置情報など)は使っていない。
+- 権限: `INTERNET`、`ACCESS_NETWORK_STATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE` のみ。ストレージの権限（`MANAGE_EXTERNAL_STORAGE`、`READ_EXTERNAL_STORAGE` など）は宣言しない（作業フォルダはアプリ内部領域 `filesDir/workspace` で、権限が不要。共有は FileProvider（`android:exported="false"`、workspace 配下だけを公開）と ACTION_SEND、書き出しは ACTION_CREATE_DOCUMENT で、いずれも利用者の操作のときだけ）。Play で個別の申請が必要な権限(SMS、位置情報など)は使っていない。
 - 輸出の暗号化: OS 標準の通信のみ(設計書 18 章)。
 
 ---
@@ -172,7 +172,7 @@ Play Console → 「アプリのコンテンツ」→「データセーフティ
 | 認証情報(API キー) | **要確認** | 任意 | アプリの機能 | — | 利用者が入力したキーは端末に暗号化保存され、提供元への認証のためにのみ送信される。Data safety の種別一覧に該当する項目があるかをフォームで確認する(未確認) |
 | IP アドレス等 | **要確認** | — | — | — | Firebase Authentication SDK は、セキュリティと不正防止のために IP アドレスを自動収集し、ユーザーエージェント、Firebase Android App ID も使う(確認済み: Firebase の「Google Play データ開示」ページ)。Firestore は、サインイン中は全リクエストに uid を含める。Hugging Face への通信でも接続元の IP が先方に届く。**フォームのどの種別に当たるかは画面で確認する**(未確認) |
 
-収集しないもの(宣言なしでよい): 位置情報、連絡先、写真・動画、音声、ファイル（利用者が選んだ作業フォルダの中身。端末内モデルが処理し、端末の外へ送らない）、健康情報、金融情報、端末 ID/広告 ID、クラッシュログ(クラッシュ送信は入れていない)。広告・解析 SDK なし。Firebase Analytics は有効にしない(設定を確認。cloud-api.md 5.5)。
+収集しないもの(宣言なしでよい): 位置情報、連絡先、写真・動画、音声、ファイル（アプリ内部領域の作業フォルダの中身。端末内モデルが処理し、端末の外へ送らない。利用者が自分で共有・書き出した先は、利用者の操作で、アプリの管理外）、健康情報、金融情報、端末 ID/広告 ID、クラッシュログ(クラッシュ送信は入れていない)。広告・解析 SDK なし。Firebase Analytics は有効にしない(設定を確認。cloud-api.md 5.5)。
 
 ### 5.4 削除要求の方法(回答用の文面案)
 - アプリ内: 「設定 → API連携 → アカウントと連携情報を削除」で、アカウントと保存された連携情報(メタデータ)を削除できる。端末内の会話・API キーは、アプリの操作またはアンインストールで消える。

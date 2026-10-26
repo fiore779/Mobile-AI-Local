@@ -29,7 +29,7 @@ object WorkspaceLimits {
     const val MAX_TOOL_TURNS = 6                 // 1 回のユーザー送信につきツールで往復できる回数
     const val MAX_FORMAT_ERRORS = 2              // 連続した形式の誤りの許容
     const val MAX_WRITE_BYTES_PER_SEND = 500_000 // 1 回のユーザー送信での書き込みの合計
-    const val OP_TIMEOUT_MS = 10_000L            // 1 操作の時間(SAF 提供元が固まる場合の保険)
+    const val OP_TIMEOUT_MS = 10_000L            // 1 操作の時間(ファイル入出力が固まる場合の保険)
     const val APPROVAL_TIMEOUT_MS = 300_000L     // 承認待ち(5 分)。超えたら拒否と同じ
     const val MAX_DEPTH = 8
     const val MAX_PATH_CHARS = 512
@@ -51,7 +51,7 @@ data class WorkspaceStat(val isDir: Boolean, val size: Long)
 data class ReadChunk(val text: String, val totalChars: Int, val start: Int, val hasMore: Boolean)
 data class WriteResult(val created: Boolean, val bytes: Int)
 
-/** 作業フォルダの実体。実装は SAF(SafWorkspace)。テストでは偽物に差し替える。パスは相対。 */
+/** 作業フォルダの実体。実装は内部領域(InternalWorkspace)。テストでは偽物に差し替える。パスは相対。 */
 interface WorkspaceFiles {
     /** 全件を名前順(ディレクトリ先)で返す。100 件への切り詰めは WorkspaceToolRunner が行う */
     suspend fun list(path: String): kotlin.collections.List<WorkspaceEntry>

@@ -463,8 +463,7 @@ fun ChatScreen(
     }
 
     state.pendingToolApproval?.let { ap ->
-        val folderName by vm.workspaceName.collectAsStateWithLifecycle()
-        ToolApprovalDialog(ap, folderName) { vm.approveTool(it) }
+        ToolApprovalDialog(ap) { vm.approveTool(it) }
     }
 
     if (showSummary && state.summaryCount > 0) {
