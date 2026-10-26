@@ -35,6 +35,7 @@ fun SettingsScreen(
     vm: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onOpenExtensions: () -> Unit = {},
     onOpenApi: () -> Unit = {},
+    onOpenWorkspace: () -> Unit = {},
     onOpenPrivacy: () -> Unit = {},
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -96,6 +97,24 @@ fun SettingsScreen(
             )
         }
 
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenWorkspace() }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.settings_workspace_entry), modifier = Modifier.weight(1f))
+            Text(
+                stringResource(if (settings.workspaceEnabled && settings.workspaceTreeUri.isNotBlank()) R.string.settings_extensions_on else R.string.settings_extensions_off),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "›",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+
         SectionHeader(stringResource(R.string.settings_api))
         Row(
             Modifier.fillMaxWidth().clickable { onOpenApi() }.padding(vertical = 6.dp),
@@ -115,6 +134,22 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 6.dp),
             )
+        }
+
+        SectionHeader(stringResource(R.string.settings_auto_compress_header))
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_auto_compress), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_auto_compress_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = settings.autoCompress, onCheckedChange = { vm.setAutoCompress(it) })
         }
 
         SectionHeader(stringResource(R.string.settings_download))

@@ -283,4 +283,53 @@
     <string name="api_delete_web_link">How to request deletion without using the app</string>
     <string name="api_delete_web_email">To request deletion without using the app, email %1$s from the Google account address you signed in with, and state that you want your data deleted. We will delete your account data from the server.</string>
     <string name="api_signin_disclosure">When you sign in, your email address and user ID are saved in Firebase (Google\'s authentication and database service), along with your list of connections (provider, display name, address and model names). API keys and your conversations are NOT saved there; keys stay only on this device. You can delete this data here after signing in ("Delete account and cloud data"), or without the app (see the Privacy Policy).</string>
+
+    <!-- 会話の自動圧縮 -->
+    <string name="chat_compressing">The conversation is getting long, so I\'m summarizing the older part…</string>
+    <string name="chat_summary_divider">Earlier messages are sent to the AI as a summary</string>
+    <string name="chat_compress_done">The conversation got long, so the older part was summarized</string>
+    <string name="chat_compress_failed">Couldn\'t summarize, so older messages were left out</string>
+    <string name="summary_dialog_title">Summary</string>
+    <string name="summary_dialog_close">Close</string>
+    <string name="summary_dialog_reset">Stop summarizing</string>
+    <string name="settings_auto_compress_header">Conversation</string>
+    <string name="settings_auto_compress">Auto-compress conversations</string>
+    <string name="settings_auto_compress_desc">When a conversation gets long, older parts are summarized so it can continue. With cloud models this adds one extra request, which counts toward your API charges.</string>
+
+    <!-- 作業フォルダ -->
+    <string name="settings_workspace_entry">Work folder</string>
+    <string name="workspace_title">Work folder</string>
+    <string name="workspace_desc">A local (on-device) model can list and read text files in the folder you choose, and create new files or replace existing ones. It cannot go outside the folder, delete files, handle binary files, or work with cloud models. Every write asks for your confirmation; reading and listing do not. If you pick a folder that is synced to a cloud storage service, files are saved to that service. With both this and JavaScript enabled, a larger context length is recommended.</string>
+    <string name="workspace_pick">Choose folder</string>
+    <string name="workspace_clear">Remove</string>
+    <string name="workspace_none">Not selected</string>
+    <string name="workspace_enable">Let the AI use files</string>
+    <string name="workspace_no_permission">Access to the folder was lost. Please choose it again.</string>
+    <string name="workspace_error_permission">Could not get access to that folder.</string>
+    <string name="workspace_cloud_unavailable">Not available with cloud models.</string>
+    <string name="workspace_first_enable_title">Let the AI use this folder?</string>
+    <string name="workspace_first_enable_body">The AI will be able to read files in this folder. This is not used with cloud models. Continue?</string>
+    <string name="tool_card_list">Work folder: list %s</string>
+    <string name="tool_card_read">Work folder: read %s</string>
+    <string name="tool_card_write">Work folder: write %s</string>
+    <string name="tool_state_running">Running…</string>
+    <string name="tool_state_done">Done</string>
+    <string name="tool_state_denied">Denied</string>
+    <string name="tool_state_failed">Failed</string>
+    <string name="tool_state_not_run">Not run</string>
+    <string name="tool_result_card">File operation result (tap to show)</string>
+    <string name="tool_status_reading">Reading %s…</string>
+    <string name="tool_status_writing">Writing %s…</string>
+    <string name="tool_status_listing">Listing %s…</string>
+    <string name="tool_approve_title">Write this file?</string>
+    <string name="tool_approve_folder">Work folder: %s</string>
+    <string name="tool_approve_new">A new file will be created (%1$d bytes).</string>
+    <string name="tool_approve_overwrite">This replaces an existing file (now %1$d bytes → new %2$d bytes).</string>
+    <string name="tool_approve_more">…%d more characters</string>
+    <string name="tool_approve_yes">Write</string>
+    <string name="tool_approve_no">Don\'t write</string>
+    <string name="tool_stop_turn_limit">Stopped: too many file operations in one message.</string>
+    <string name="tool_stop_format">Stopped: the AI kept using the file tags incorrectly.</string>
+    <string name="tool_stop_no_access">Cannot access the work folder. Please choose it again in Settings.</string>
+    <string name="cloud_confirm_file_note">File contents from your work folder are not sent. However, the AI\'s replies or the summary may contain parts of them.</string>
 </resources>

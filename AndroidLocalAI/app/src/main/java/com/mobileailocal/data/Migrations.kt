@@ -17,3 +17,16 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         MIGRATION_1_2_STATEMENTS.forEach { db.execSQL(it) }
     }
 }
+
+/** 2 → 3 で実行する SQL(会話ごとのローリング要約。設計書 context-and-workspace 4.4)。 */
+val MIGRATION_2_3_STATEMENTS = listOf(
+    "ALTER TABLE conversation ADD COLUMN summaryText TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE conversation ADD COLUMN summaryCount INTEGER NOT NULL DEFAULT 0",
+)
+
+/** conversation に要約の列を足すだけ。既存の会話・メッセージには触れない(要約は空)。 */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_2_3_STATEMENTS.forEach { db.execSQL(it) }
+    }
+}

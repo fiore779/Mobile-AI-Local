@@ -20,6 +20,7 @@ import com.mobileailocal.data.CloudIntegrationRepository
 import com.mobileailocal.data.CloudKeyStore
 import com.mobileailocal.data.LOCAL_UID
 import com.mobileailocal.data.MIGRATION_1_2
+import com.mobileailocal.data.MIGRATION_2_3
 import com.mobileailocal.data.RepositoryCredentials
 import com.mobileailocal.domain.ApiErrorKind
 import com.mobileailocal.domain.CloudInputs
@@ -48,6 +49,9 @@ import com.mobileailocal.data.JsWorkspace
 import com.mobileailocal.data.ModelRepository
 import java.io.File
 import com.mobileailocal.data.SettingsRepository
+import com.mobileailocal.data.AppSettings
+import com.mobileailocal.data.SafWorkspace
+import com.mobileailocal.data.WorkspaceToolRunner
 import com.mobileailocal.domain.LlamaCppEngine
 import com.mobileailocal.domain.InferenceEngine
 import kotlinx.coroutines.CoroutineScope
@@ -82,6 +86,13 @@ class App : Application() {
     lateinit var downloads: DownloadTracker; private set
     lateinit var deviceMonitor: DeviceMonitor; private set
     lateinit var jsRunManager: JsRunManager; private set
+    /** 作業フォルダ(SAF。利用者が選んだ 1 つのフォルダ。JS の内部作業フォルダとは別物)。 */
+    /** 作業フォルダの実行口。URI は実行のたびに(そのときの設定値で)渡す。 */
+    fun workspaceRunner(treeUri: String): WorkspaceToolRunner = WorkspaceToolRunner(SafWorkspace(this, treeUri))
+
+    /** 作業フォルダが使える状態か(設定が有効 + フォルダ選択済み + 永続権限あり)。 */
+    fun workspaceUsable(s: AppSettings): Boolean =
+        s.workspaceEnabled && s.workspaceTreeUri.isNotBlank() && SafWorkspace.hasPersistedPermission(this, s.workspaceTreeUri)
 
     // 想定外の例外でアプリごと落ちないようにする(ログに残す)
     private val scope = CoroutineScope(
@@ -317,7 +328,7 @@ class App : Application() {
         // :runner プロセス(JavaScript 実行)では、Room・llama.cpp・ダウンロードなどを何も作らない
         if (Application.getProcessName() != packageName) return
         db = Room.databaseBuilder(this, AppDatabase::class.java, "app.db")
-            .addMigrations(MIGRATION_1_2) // fallbackToDestructiveMigration は使わない(会話が消える)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3) // fallbackToDestructiveMigration は使わない(会話が消える)
             .build()
         settings = SettingsRepository(this)
         localEngine = LlamaCppEngine()

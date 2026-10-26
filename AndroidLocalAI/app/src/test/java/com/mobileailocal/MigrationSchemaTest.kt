@@ -2,6 +2,8 @@ package com.mobileailocal
 
 import com.mobileailocal.data.MIGRATION_1_2
 import com.mobileailocal.data.MIGRATION_1_2_STATEMENTS
+import com.mobileailocal.data.MIGRATION_2_3
+import com.mobileailocal.data.MIGRATION_2_3_STATEMENTS
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -88,5 +90,40 @@ class MigrationSchemaTest {
                 t.lines().map { l -> l.substringBefore("//") }.joinToString("\n")
             } }
         assertFalse(src.contains("fallbackToDestructiveMigration"))
+    }
+
+    // ---- 2 → 3(会話の要約の列) ----
+
+    @Test fun v3VersionsAndMigrationRange() {
+        assertEquals(3, schema(3).getInt("version"))
+        assertEquals(2, MIGRATION_2_3.startVersion)
+        assertEquals(3, MIGRATION_2_3.endVersion)
+    }
+
+    @Test fun conversationGainsOnlySummaryColumnsMatchingSql() {
+        val f2 = entities(schema(2)).getValue("conversation").getJSONArray("fields").objs()
+        val f3 = entities(schema(3)).getValue("conversation").getJSONArray("fields").objs()
+        assertEquals(f2.map { it.toString() }, f3.take(f2.size).map { it.toString() })
+        val added = f3.drop(f2.size)
+        assertEquals(listOf("summaryText", "summaryCount"), added.map { it.getString("columnName") })
+        for (col in added) {
+            assertTrue(col.getBoolean("notNull"))
+            val sql = MIGRATION_2_3_STATEMENTS.first { it.contains("ADD COLUMN ${col.getString("columnName")} ") }
+            assertEquals(
+                "ALTER TABLE conversation ADD COLUMN ${col.getString("columnName")} ${col.getString("affinity")} NOT NULL DEFAULT ${col.getString("defaultValue")}",
+                sql,
+            )
+        }
+    }
+
+    @Test fun otherTablesUnchangedIn3AndNoDestructiveSql() {
+        val v2 = entities(schema(2))
+        val v3 = entities(schema(3))
+        assertEquals(v2.keys, v3.keys)
+        for (t in v2.keys - "conversation") assertEquals(t, v2.getValue(t).toString(), v3.getValue(t).toString())
+        for (s in MIGRATION_2_3_STATEMENTS) {
+            val u = s.uppercase()
+            assertFalse(s, u.contains("DROP ") || u.contains("DELETE "))
+        }
     }
 }

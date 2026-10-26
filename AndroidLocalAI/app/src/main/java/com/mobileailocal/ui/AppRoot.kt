@@ -43,17 +43,19 @@ enum class Dest(val route: String, val label: Int, val icon: Int) {
 
 // 設定画面の下に開く拡張機能画面(下部ナビには出さない)
 private const val EXTENSIONS_ROUTE = "settings/extensions"
+private const val WORKSPACE_ROUTE = "settings/workspace"
 private const val PRIVACY_ROUTE = "settings/privacy"
 private const val API_ROUTE = "settings/api"
 private const val API_DETAIL_ROUTE = "settings/api/{integrationId}" // "new" で追加、連携 ID で編集
 
 /** 設定の下位ルートか(下部ナビの「設定」を強調し、戻る矢印を出す)。 */
 internal fun isSettingsSubRoute(route: String?): Boolean =
-    route == EXTENSIONS_ROUTE || route == PRIVACY_ROUTE || route == API_ROUTE || route?.startsWith("$API_ROUTE/") == true
+    route == EXTENSIONS_ROUTE || route == WORKSPACE_ROUTE || route == PRIVACY_ROUTE || route == API_ROUTE || route?.startsWith("$API_ROUTE/") == true
 
 /** 設定の下位ルートのタイトル(文字列リソース id)。 */
 internal fun settingsSubTitle(route: String?): Int = when {
     route == EXTENSIONS_ROUTE -> R.string.settings_extensions
+    route == WORKSPACE_ROUTE -> R.string.workspace_title
     route == PRIVACY_ROUTE -> R.string.settings_privacy_policy
     route == API_ROUTE -> R.string.settings_api
     route == "$API_ROUTE/new" -> R.string.api_add_title
@@ -153,10 +155,12 @@ fun AppRoot() {
                     SettingsScreen(
                         onOpenExtensions = { nav.navigate(EXTENSIONS_ROUTE) { launchSingleTop = true } },
                         onOpenApi = { nav.navigate(API_ROUTE) { launchSingleTop = true } },
+                        onOpenWorkspace = { nav.navigate(WORKSPACE_ROUTE) { launchSingleTop = true } },
                         onOpenPrivacy = openPrivacy,
                     )
                 }
                 composable(EXTENSIONS_ROUTE) { ExtensionsScreen() }
+                composable(WORKSPACE_ROUTE) { WorkspaceScreen() }
                 composable(PRIVACY_ROUTE) { PrivacyPolicyScreen() }
                 composable(API_ROUTE) {
                     ApiSettingsScreen(

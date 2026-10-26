@@ -21,6 +21,10 @@ data class ConversationEntity(
     val modelId: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /** 古い発言の要約(会話ごとに 1 つ)。空なら無し。 */
+    @ColumnInfo(defaultValue = "''") val summaryText: String = "",
+    /** 要約が覆う先頭からの発言数。 */
+    @ColumnInfo(defaultValue = "0") val summaryCount: Int = 0,
 )
 
 @Entity(
@@ -94,13 +98,19 @@ interface ChatDao {
     @Query("UPDATE conversation SET title = :title, updatedAt = :now WHERE id = :id")
     fun rename(id: Long, title: String, now: Long)
 
+    @Query("UPDATE conversation SET summaryText = :text, summaryCount = :count WHERE id = :id")
+    fun updateSummary(id: Long, text: String, count: Int)
+
+    @Query("UPDATE conversation SET summaryText = '', summaryCount = 0 WHERE id = :id")
+    fun clearSummary(id: Long)
+
     @Query("UPDATE conversation SET modelId = :modelId WHERE id = :id")
     fun updateModelId(id: Long, modelId: String?)
 
     @Query("UPDATE conversation SET updatedAt = :now WHERE id = :id")
     fun touch(id: Long, now: Long)
 
-    @Query("SELECT id FROM message WHERE conversationId = :cid AND role = 'user' ORDER BY id DESC LIMIT 1")
+    @Query("SELECT id FROM message WHERE conversationId = :cid AND role = 'user' AND content NOT LIKE '[File tool result]%' ORDER BY id DESC LIMIT 1")
     fun lastUserMessageId(cid: Long): Long?
 
     @Query("DELETE FROM message WHERE conversationId = :cid AND id > :id")
@@ -153,7 +163,7 @@ interface CloudIntegrationDao {
 
 @Database(
     entities = [ConversationEntity::class, MessageEntity::class, ModelEntity::class, CloudIntegrationEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

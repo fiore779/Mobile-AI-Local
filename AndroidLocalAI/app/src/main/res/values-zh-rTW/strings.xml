@@ -283,4 +283,53 @@
     <string name="api_delete_web_link">不使用應用程式請求刪除的方法</string>
     <string name="api_delete_web_email">如需在不使用應用程式的情況下請求刪除,請用登入所用的 Google 帳號信箱向 %1$s 寄送郵件,說明希望刪除資料。我們會刪除伺服器上的帳號資訊。</string>
     <string name="api_signin_disclosure">登入後,您的電子郵件地址和使用者 ID 會連同連線清單(提供商、顯示名稱、位址和模型名稱)一起儲存在 Firebase(Google 的驗證與資料庫服務)中。API 金鑰和對話內容不會儲存到那裡(金鑰只儲存在本裝置上)。您可以在登入後透過本頁的「刪除帳號與雲端連線資訊」刪除,也可以不使用應用程式來刪除(詳見隱私權政策)。</string>
+
+    <!-- 会話の自動圧縮 -->
+    <string name="chat_compressing">對話變長了,正在摘要較早的部分…</string>
+    <string name="chat_summary_divider">此前的內容已摘要後交給 AI</string>
+    <string name="chat_compress_done">對話變長了,已摘要較早的部分</string>
+    <string name="chat_compress_failed">無法摘要,已省略較早的訊息並繼續</string>
+    <string name="summary_dialog_title">摘要</string>
+    <string name="summary_dialog_close">關閉</string>
+    <string name="summary_dialog_reset">取消摘要</string>
+    <string name="settings_auto_compress_header">對話</string>
+    <string name="settings_auto_compress">自動壓縮對話</string>
+    <string name="settings_auto_compress_desc">對話變長時,會摘要較早的部分並繼續。使用雲端模型時,會多傳送一次用於摘要的請求,並產生 API 費用。</string>
+
+    <!-- 作業フォルダ -->
+    <string name="settings_workspace_entry">工作資料夾</string>
+    <string name="workspace_title">工作資料夾</string>
+    <string name="workspace_desc">裝置上的本機模型可以讀取您所選資料夾中的文字檔,並新增或取代檔案。無法存取資料夾以外的內容,也不能刪除檔案、處理二進位檔,或搭配雲端模型使用。每次寫入都會先徵求您的確認(讀取和列出不需確認)。如果選擇與雲端儲存同步的資料夾,檔案會儲存到該服務。同時啟用 JavaScript 執行時,建議增加上下文長度。</string>
+    <string name="workspace_pick">選擇資料夾</string>
+    <string name="workspace_clear">解除</string>
+    <string name="workspace_none">未選擇</string>
+    <string name="workspace_enable">允許 AI 操作檔案</string>
+    <string name="workspace_no_permission">已失去對該資料夾的存取權限,請重新選擇。</string>
+    <string name="workspace_error_permission">無法取得該資料夾的存取權限。</string>
+    <string name="workspace_cloud_unavailable">雲端模型無法使用。</string>
+    <string name="workspace_first_enable_title">允許 AI 使用此資料夾嗎?</string>
+    <string name="workspace_first_enable_body">AI 將可以讀取此資料夾中的檔案。不會用於雲端模型。要繼續嗎?</string>
+    <string name="tool_card_list">工作資料夾:列出 %s</string>
+    <string name="tool_card_read">工作資料夾:讀取 %s</string>
+    <string name="tool_card_write">工作資料夾:寫入 %s</string>
+    <string name="tool_state_running">執行中…</string>
+    <string name="tool_state_done">完成</string>
+    <string name="tool_state_denied">已拒絕</string>
+    <string name="tool_state_failed">失敗</string>
+    <string name="tool_state_not_run">未執行</string>
+    <string name="tool_result_card">檔案操作結果(點按查看)</string>
+    <string name="tool_status_reading">正在讀取 %s…</string>
+    <string name="tool_status_writing">正在寫入 %s…</string>
+    <string name="tool_status_listing">正在列出 %s…</string>
+    <string name="tool_approve_title">要寫入檔案嗎?</string>
+    <string name="tool_approve_folder">工作資料夾:%s</string>
+    <string name="tool_approve_new">將新增檔案(%1$d 位元組)。</string>
+    <string name="tool_approve_overwrite">將取代既有檔案(目前 %1$d 位元組 → 新的 %2$d 位元組)。</string>
+    <string name="tool_approve_more">…還有 %d 個字元</string>
+    <string name="tool_approve_yes">寫入</string>
+    <string name="tool_approve_no">不寫入</string>
+    <string name="tool_stop_turn_limit">單次回覆中的檔案操作過多,已停止。</string>
+    <string name="tool_stop_format">AI 多次未依正確格式進行檔案操作,已停止。</string>
+    <string name="tool_stop_no_access">無法存取該資料夾,請在設定中重新選擇。</string>
+    <string name="cloud_confirm_file_note">不會傳送工作資料夾中的檔案內容。但 AI 的回覆或摘要中可能包含其中一部分。</string>
 </resources>

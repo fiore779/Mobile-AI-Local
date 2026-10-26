@@ -84,6 +84,9 @@ import com.mobileailocal.domain.MessageSegment
 import com.mobileailocal.domain.ReportIntent
 import com.mobileailocal.domain.Role
 import com.mobileailocal.domain.ThinkingParser
+import com.mobileailocal.domain.ToolCallParser
+import com.mobileailocal.domain.ToolFind
+import com.mobileailocal.domain.ToolResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -114,6 +117,7 @@ fun ChatScreen(
     val cloudInteg = cloudSel?.let { s -> integrations.firstOrNull { it.id == s.ref.integrationId } }
     var text by rememberSaveable { mutableStateOf("") }
     var showPromptDialog by remember { mutableStateOf(false) }
+    var showSummary by remember { mutableStateOf(false) }
     // 確認ダイアログ(「実行」を押すとここへ入れて、確定したら実行する)
     var confirming by remember { mutableStateOf<PendingRun?>(null) }
     val scope = rememberCoroutineScope()
@@ -137,7 +141,7 @@ fun ChatScreen(
     fun aiLabel(m: ChatMessage): String = if (m.origin == Origin.Cloud) cloudLabel else localLabel
 
     val visible = state.messages.filterNot { it.role == Role.System }
-    val lastUserIndex = visible.indexOfLast { it.role == Role.User }
+    val lastUserIndex = visible.indexOfLast { it.role == Role.User && !ToolResult.isResult(it.content) }
     val listState = rememberLazyListState()
 
     // 新しいメッセージ(件数・最後の本文長)が変わったら最下部へ
@@ -186,7 +190,17 @@ fun ChatScreen(
                 contentPadding = PaddingValues(8.dp),
             ) {
                 itemsIndexed(visible) { index, m ->
+                    // 要約済みの区切り(ここより前は要約して AI に渡している。表示は消さない)
+                    if (state.summaryCount > 0 && index == state.summaryCount) {
+                        SummaryDivider(onClick = { showSummary = true })
+                    }
+                    // ツール結果の user 行は、利用者の吹き出しにせず折りたたみカードにする
+                    if (m.role == Role.User && ToolResult.isResult(m.content)) {
+                        ToolResultCard(m.content)
+                        return@itemsIndexed
+                    }
                     val isUser = m.role == Role.User
+                    val toolCardState = toolCardStateFor(visible, index, state.generating)
                     // 吹き出しから呼ぶ口(確認ダイアログを開く / 中止 / AI に渡す / 閉じる)
                     val onRunRequest: (BlockKey, String) -> Unit = { key, code -> confirming = PendingRun(key, code) }
                     val onCancelJs: () -> Unit = { vm.cancelJs() }
@@ -218,6 +232,7 @@ fun ChatScreen(
                                 onCancelJs = onCancelJs,
                                 onHandoff = onHandoff,
                                 onDismissJs = onDismissJs,
+                                toolCardState = toolCardState,
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -256,6 +271,7 @@ fun ChatScreen(
                             onCancelJs = onCancelJs,
                             onHandoff = onHandoff,
                             onDismissJs = onDismissJs,
+                            toolCardState = toolCardState,
                         )
                         if (isUser) {
                             // ユーザー吹き出しの下: 「コピー」(すべて)と「再試行」(最後の発言で、生成中でないとき)
@@ -292,7 +308,21 @@ fun ChatScreen(
         }
         // クラウドの応答を待っている間(最初の文字が来るまで)。推論型のモデルは考えるのに時間がかかる
         val lastMsg = visible.lastOrNull()
-        if (state.generating && lastMsg != null && lastMsg.role == Role.Assistant &&
+        if (state.compressing) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(R.string.chat_compressing),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (state.generating && !state.compressing && lastMsg != null && lastMsg.role == Role.Assistant &&
             lastMsg.origin == Origin.Cloud && lastMsg.content.isBlank()
         ) {
             // 経過秒は送信を始めた時刻(状態)から数えるので、画面の回転で 0 に戻らない
@@ -329,6 +359,49 @@ fun ChatScreen(
         if (state.maxTokensNotice) {
             Text(
                 stringResource(R.string.cloud_max_tokens_notice),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+        }
+        state.toolStatus?.let { st ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(
+                        when (st.op) {
+                            "write" -> R.string.tool_status_writing
+                            "list" -> R.string.tool_status_listing
+                            else -> R.string.tool_status_reading
+                        },
+                        st.path,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        state.toolStopNotice?.let { n ->
+            Text(
+                stringResource(
+                    when (n) {
+                        ToolStopNotice.TurnLimit -> R.string.tool_stop_turn_limit
+                        ToolStopNotice.FormatErrors -> R.string.tool_stop_format
+                        ToolStopNotice.NoAccess -> R.string.tool_stop_no_access
+                    },
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            )
+        }
+        state.compressNotice?.let { notice ->
+            Text(
+                stringResource(if (notice is CompressNotice.Done) R.string.chat_compress_done else R.string.chat_compress_failed),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
@@ -389,11 +462,29 @@ fun ChatScreen(
         }
     }
 
+    state.pendingToolApproval?.let { ap ->
+        val folderName by vm.workspaceName.collectAsStateWithLifecycle()
+        ToolApprovalDialog(ap, folderName) { vm.approveTool(it) }
+    }
+
+    if (showSummary && state.summaryCount > 0) {
+        SummaryDialog(
+            summary = state.summaryText,
+            onDismiss = { showSummary = false },
+            onReset = { vm.clearSummary(); showSummary = false },
+        )
+    }
+
     state.pendingCloudConfirm?.let { pending ->
         AlertDialog(
             onDismissRequest = { vm.cancelPendingSend() },
             title = { Text(stringResource(R.string.cloud_history_confirm_title)) },
-            text = { Text(stringResource(R.string.cloud_history_confirm_body, cloudInteg?.displayName ?: "")) },
+            text = {
+                val body = stringResource(R.string.cloud_history_confirm_body, cloudInteg?.displayName ?: "")
+                // ファイル操作の結果または要約がある会話では、ファイルの内容は送らないが一部が含まれうることを足す
+                val withNote = state.summaryText.isNotBlank() || state.messages.any { it.role == Role.User && ToolResult.isResult(it.content) }
+                Text(if (withNote) body + "\n\n" + stringResource(R.string.cloud_confirm_file_note) else body)
+            },
             confirmButton = {
                 TextButton(onClick = {
                     vm.confirmPendingSend()
@@ -745,11 +836,19 @@ private fun Bubble(
     onDismissJs: () -> Unit,
     /** AI の回答の上に控えめに出す提供元の目印(クラウドは ☁ と名前、ローカルはモデル名)。 */
     label: String? = null,
+    /** 返答にツールのタグがあるときのカードの状態。 */
+    toolCardState: ToolCardState = ToolCardState.NotRun,
 ) {
     // 思考過程は、回答が出始めたら畳んで、押すと再表示できる(状態は位置ごとに保持)
     val parsed = remember(m.content) { if (isUser) null else ThinkingParser.parse(m.content) }
     var showThinking by rememberSaveable { mutableStateOf(false) }
-    val body = parsed?.answer ?: m.content
+    val fullBody = parsed?.answer ?: m.content
+    // 端末内モデルの返答にある作業フォルダのタグは、生のタグの代わりにカードで見せる(クラウドの返答は文章のまま)
+    val toolFind = remember(fullBody) {
+        if (!isUser && m.origin == Origin.Local && "<file_" in fullBody) ToolCallParser.find(fullBody) else null
+    }
+    val toolCall = toolFind as? ToolFind.Call
+    val body = if (toolCall != null) fullBody.substring(0, toolCall.startIndex).trim() else fullBody
 
     if (isUser) {
         // ユーザーの発言: 右寄せの色つき吹き出し(コードブロック処理はしない)
@@ -851,6 +950,7 @@ private fun Bubble(
                 }
             }
         }
+        if (toolCall != null) ToolCallCard(toolCall.call, toolCardState)
     }
 }
 

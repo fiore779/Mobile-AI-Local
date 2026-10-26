@@ -27,4 +27,10 @@ class ChatRetryTest {
         val m = listOf(u(), a(), u("2"))
         assertEquals(m, historyForRetry(m))
     }
+
+    @Test fun toolResultRowsAreNotTheLastRealUser() {
+        val res = u(com.mobileailocal.domain.ToolResult.PREFIX + "status: ok")
+        val m = listOf(u("q"), a("<file_list/>"), res, a("done"))
+        assertEquals(listOf(u("q")), historyForRetry(m))
+    }
 }

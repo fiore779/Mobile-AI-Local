@@ -34,6 +34,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setLanguage(v: String) { viewModelScope.launch { repo.setLanguage(v) } }
 
     fun setWifiOnly(v: Boolean) { viewModelScope.launch { repo.setWifiOnly(v) } }
+    fun setAutoCompress(v: Boolean) { viewModelScope.launch { repo.setAutoCompress(v) } }
 
     fun setParams(v: GenerationParams) { viewModelScope.launch { repo.setParams(v) } }
 }

@@ -283,4 +283,53 @@
     <string name="api_delete_web_link">アプリを使わずに削除を依頼する方法</string>
     <string name="api_delete_web_email">アプリを使わずに削除を依頼する場合は、サインインした Google アカウントのメールアドレスから %1$s へ、データの削除を希望する旨をメールでお送りください。サーバー上のアカウント情報を削除します。</string>
     <string name="api_signin_disclosure">サインインすると、メールアドレスとユーザー ID が、接続先の一覧(提供元・表示名・アドレス・モデル名)とともに Firebase(Google の認証・データベースサービス)に保存されます。API キーと会話の内容は保存されません(キーはこの端末にだけ残ります)。削除は、サインイン後にこの画面の「アカウントと連携情報を削除」から、またはアプリを使わずにできます(プライバシーポリシーを参照)。</string>
+
+    <!-- 会話の自動圧縮 -->
+    <string name="chat_compressing">会話が長くなったので、古い部分を要約しています…</string>
+    <string name="chat_summary_divider">ここより前は要約して AI に渡しています</string>
+    <string name="chat_compress_done">会話が長くなったので、古い部分を要約しました</string>
+    <string name="chat_compress_failed">要約できなかったので、古い発言を省いて続けました</string>
+    <string name="summary_dialog_title">要約</string>
+    <string name="summary_dialog_close">閉じる</string>
+    <string name="summary_dialog_reset">要約をやめる</string>
+    <string name="settings_auto_compress_header">会話</string>
+    <string name="settings_auto_compress">会話の自動圧縮</string>
+    <string name="settings_auto_compress_desc">会話が長くなったとき、古い部分を要約して続けます。クラウドのモデルでは、要約のための送信が 1 回増え、API の料金がかかります。</string>
+
+    <!-- 作業フォルダ -->
+    <string name="settings_workspace_entry">作業フォルダ</string>
+    <string name="workspace_title">作業フォルダ</string>
+    <string name="workspace_desc">端末内のモデルが、選んだフォルダの中のテキストファイルを読み、新しく作る・置き換えることができます。フォルダの外、ファイルの削除、バイナリ、クラウドのモデルでは使えません。書き込みは毎回確認します(読み取りと一覧は確認なし)。クラウドストレージと同期するフォルダを選ぶと、ファイルはそのサービスに保存されます。JavaScript 実行も有効にする場合は、コンテキスト長を大きくすることをおすすめします。</string>
+    <string name="workspace_pick">フォルダを選ぶ</string>
+    <string name="workspace_clear">解除</string>
+    <string name="workspace_none">未選択</string>
+    <string name="workspace_enable">AI にファイル操作を許可</string>
+    <string name="workspace_no_permission">フォルダへのアクセスが無くなりました。選び直してください。</string>
+    <string name="workspace_error_permission">そのフォルダへのアクセスを取得できませんでした。</string>
+    <string name="workspace_cloud_unavailable">クラウドのモデルでは使えません。</string>
+    <string name="workspace_first_enable_title">このフォルダを AI が使えるようにしますか？</string>
+    <string name="workspace_first_enable_body">AI がこのフォルダのファイルを読めるようになります。クラウドのモデルには使われません。続けますか？</string>
+    <string name="tool_card_list">作業フォルダ: %s の一覧</string>
+    <string name="tool_card_read">作業フォルダ: %s を読み取り</string>
+    <string name="tool_card_write">作業フォルダ: %s に書き込み</string>
+    <string name="tool_state_running">実行中…</string>
+    <string name="tool_state_done">完了</string>
+    <string name="tool_state_denied">拒否しました</string>
+    <string name="tool_state_failed">失敗しました</string>
+    <string name="tool_state_not_run">実行されませんでした</string>
+    <string name="tool_result_card">ファイル操作の結果(タップで表示)</string>
+    <string name="tool_status_reading">%s を読んでいます…</string>
+    <string name="tool_status_writing">%s に書き込んでいます…</string>
+    <string name="tool_status_listing">%s の一覧を取得しています…</string>
+    <string name="tool_approve_title">ファイルを書き込みますか？</string>
+    <string name="tool_approve_folder">作業フォルダ: %s</string>
+    <string name="tool_approve_new">新しいファイルを作成します(%1$d バイト)。</string>
+    <string name="tool_approve_overwrite">既存のファイルを置き換えます(現在 %1$d バイト → 新しい %2$d バイト)。</string>
+    <string name="tool_approve_more">…あと %d 文字</string>
+    <string name="tool_approve_yes">書き込む</string>
+    <string name="tool_approve_no">書き込まない</string>
+    <string name="tool_stop_turn_limit">1 回の返答でのファイル操作が多すぎるため、止めました。</string>
+    <string name="tool_stop_format">AI がファイル操作の形式を守れなかったため、止めました。</string>
+    <string name="tool_stop_no_access">フォルダにアクセスできません。設定で選び直してください。</string>
+    <string name="cloud_confirm_file_note">作業フォルダのファイルの内容は送りません。ただし、AI の返答や要約に、その一部が含まれている場合があります。</string>
 </resources>

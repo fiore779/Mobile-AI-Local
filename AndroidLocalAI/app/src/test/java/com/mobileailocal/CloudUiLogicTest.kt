@@ -70,9 +70,9 @@ class CloudUiLogicTest {
 
     // --- システムプロンプト ---
     @Test fun jsAddendumOnlyForLocal() {
-        assertTrue(Prompts.JS_ADDENDUM in Prompts.systemFor("base", jsEnabled = true, cloud = false))
-        assertFalse(Prompts.JS_ADDENDUM in Prompts.systemFor("base", jsEnabled = true, cloud = true))
-        assertEquals("base", Prompts.systemFor("base", jsEnabled = false, cloud = false))
+        assertTrue(Prompts.JS_ADDENDUM in Prompts.systemFor("base", jsEnabled = true, workspaceEnabled = false, summary = "", cloud = false))
+        assertFalse(Prompts.JS_ADDENDUM in Prompts.systemFor("base", jsEnabled = true, workspaceEnabled = false, summary = "", cloud = true))
+        assertEquals("base", Prompts.systemFor("base", jsEnabled = false, workspaceEnabled = false, summary = "", cloud = false))
     }
 
     // --- 実行ボタン ---
