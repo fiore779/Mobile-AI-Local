@@ -340,4 +340,5 @@
     <string name="workspace_delete_all_body">將刪除工作資料夾中的所有檔案。此操作無法復原。</string>
     <string name="workspace_export_done">已匯出。</string>
     <string name="workspace_export_failed">無法匯出檔案。</string>
+    <string name="chat_prefill_progress">正在處理提示詞:%1$d%%</string>
 </resources>

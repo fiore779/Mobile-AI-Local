@@ -17,6 +17,8 @@
 
 namespace {
 
+constexpr int PREFILL_CHUNK = 128;  // プロンプトを流し込む塊の大きさ(停止の反応と進捗表示の細かさのため。大きいほど速いが反応が遅い)
+
 llama_model *g_model = nullptr;
 llama_context *g_ctx = nullptr;
 std::atomic<bool> g_stop{false};
@@ -113,12 +115,15 @@ extern "C" {
 JNIEXPORT jstring JNICALL
 Java_com_mobileailocal_domain_LlamaCppEngine_nativeLoad(JNIEnv *env, jobject, jstring path, jint nCtx, jint nThreads) {
     free_all();
+    g_stop = false;  // 読み込みの前に、前の停止要求を捨てる(読み込みを止めたいときは、読み込み中に nativeStop を呼ぶ)
     llama_backend_init();
     clear_errs();
     llama_log_set(capture_log, nullptr);
 
     llama_model_params mp = llama_model_default_params();
     mp.n_gpu_layers = 0;
+    // モデルの読み込みも、nativeStop で途中で止められるようにする(別のモデルを選んだとき、読み終わるまで待たせない)
+    mp.progress_callback = [](float, void *) -> bool { return !g_stop.load(); };
     g_model = llama_model_load_from_file(jstr(env, path).c_str(), mp);
     if (!g_model) return make_jstring(env, with_detail("E_LOAD_FILE"));
 
@@ -130,6 +135,9 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeLoad(JNIEnv *env, jobject, js
     cp.n_threads_batch = nThreads;
     g_ctx = llama_init_from_model(g_model, cp);
     if (!g_ctx) { std::string e = with_detail("E_CONTEXT"); free_all(); return make_jstring(env, e); }
+    // 停止要求は、1 回の llama_decode の計算の途中でも効かせる(長いプロンプトの 1 バッチが数十秒かかる端末があるため)
+    llama_set_abort_callback(g_ctx, [](void *) -> bool { return g_stop.load(); }, nullptr);
+    g_stop = false;
     LOGI("loaded: n_ctx=%u threads=%d", llama_n_ctx(g_ctx), nThreads);
     return make_jstring(env, "");
 }
@@ -140,6 +148,11 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeUnload(JNIEnv *, jobject) { f
 JNIEXPORT void JNICALL
 Java_com_mobileailocal_domain_LlamaCppEngine_nativeStop(JNIEnv *, jobject) { g_stop = true; }
 
+// 停止フラグを下ろす。生成の直前に Kotlin から呼ぶ(nativeGenerate の中では下ろさない。
+// 下ろすと、nativeGenerate が始まる前に届いた停止要求を取りこぼすため)。
+JNIEXPORT void JNICALL
+Java_com_mobileailocal_domain_LlamaCppEngine_nativeClearStop(JNIEnv *, jobject) { g_stop = false; }
+
 // 会話全体からプロンプトを作って生成し、断片ごとに sink.accept(piece) を呼ぶ。
 // - 長すぎる会話は、古い発言から落として文脈に収める(先頭の system と最新の発言は残す)。
 // - 前回の続きの会話なら、共通する先頭部分の KV キャッシュを再利用して、読み直しを省く。
@@ -149,7 +162,7 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
         JNIEnv *env, jobject, jobjectArray roles, jobjectArray contents,
         jfloat temperature, jfloat topP, jint maxTokens, jint seed, jobject sink) {
     if (!g_model || !g_ctx) return make_jstring(env, "E_NO_MODEL");
-    g_stop = false;
+    if (g_stop) return make_jstring(env, "");  // 始まる前に停止要求が届いていた
 
     const llama_vocab *vocab = llama_model_get_vocab(g_model);
     const int n_ctx = (int) llama_n_ctx(g_ctx);
@@ -226,23 +239,32 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
     clear_errs();
     LOGI("prompt=%zu tokens, reused=%zu", tokens.size(), common);
 
-    const int n_batch = (int) llama_n_batch(g_ctx);
+    // プロンプトは小さな塊(PREFILL_CHUNK トークン)ごとに流し込む。塊の間で停止要求を見て、進捗を Kotlin に知らせる。
+    // (llama_decode の途中の停止は abort callback が受ける。その場合は KV が中途半端なので捨てる)
+    jclass cls = env->GetObjectClass(sink);
+    jmethodID accept = env->GetMethodID(cls, "accept", "(Ljava/lang/String;)Z");
+    jmethodID progress = env->GetMethodID(cls, "progress", "(II)V");
+    const int n_batch = std::min<int>((int) llama_n_batch(g_ctx), PREFILL_CHUNK);
+    const int todo = (int) (tokens.size() - common);
+    env->CallVoidMethod(sink, progress, 0, todo);
+    if (env->ExceptionCheck()) env->ExceptionClear();
     for (size_t i = common; i < tokens.size(); i += n_batch) {
-        if (g_stop) { llama_sampler_free(smpl); g_cache.clear(); llama_memory_clear(mem, true); return make_jstring(env, ""); }
+        if (g_stop) { llama_sampler_free(smpl); return make_jstring(env, ""); }  // 塊の境界なので、ここまでの KV は有効
         int cnt = std::min<int>(n_batch, tokens.size() - i);
         llama_batch b = llama_batch_get_one(tokens.data() + i, cnt);
         int rc = llama_decode(g_ctx, b);
         if (rc != 0) {
             llama_sampler_free(smpl);
             g_cache.clear(); llama_memory_clear(mem, true);
+            if (g_stop) return make_jstring(env, "");  // 計算の途中で止めた(rc=2)。エラーではない
             return make_jstring(env, with_detail("E_DECODE_PROMPT", "llama_decode returned " + std::to_string(rc)));
         }
         g_cache.insert(g_cache.end(), tokens.begin() + i, tokens.begin() + i + cnt);
+        env->CallVoidMethod(sink, progress, (jint) (i + cnt - common), todo);
+        if (env->ExceptionCheck()) env->ExceptionClear();
     }
 
     // 5) 1トークンずつ生成して Kotlin に渡す。
-    jclass cls = env->GetObjectClass(sink);
-    jmethodID accept = env->GetMethodID(cls, "accept", "(Ljava/lang/String;)Z");
     std::string pending;  // UTF-8 の途中で切れた断片を次に持ち越す
     std::string error;
     for (int i = 0; i < budget && !g_stop; i++) {
@@ -264,6 +286,7 @@ Java_com_mobileailocal_domain_LlamaCppEngine_nativeGenerate(
 
         llama_batch b = llama_batch_get_one(&tok, 1);
         int rc = llama_decode(g_ctx, b);
+        if (rc != 0 && g_stop) { g_cache.clear(); llama_memory_clear(mem, true); break; }  // 計算の途中で止めた
         if (rc != 0) { error = with_detail("E_DECODE_GEN", "llama_decode returned " + std::to_string(rc)); break; }
         g_cache.push_back(tok);
     }

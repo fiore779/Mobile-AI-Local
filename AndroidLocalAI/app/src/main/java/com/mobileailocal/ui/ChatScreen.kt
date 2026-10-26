@@ -308,6 +308,23 @@ fun ChatScreen(
         }
         // クラウドの応答を待っている間(最初の文字が来るまで)。推論型のモデルは考えるのに時間がかかる
         val lastMsg = visible.lastOrNull()
+        // 端末内モデルのプロンプト処理中(送信してから最初の文字が出るまで)。要約中は要約の表示を優先する
+        val prefill by vm.prefillPercent.collectAsStateWithLifecycle()
+        val prefillValue = prefill
+        if (state.generating && !state.compressing && prefillValue != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    stringResource(R.string.chat_prefill_progress, prefillValue),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         if (state.compressing) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),

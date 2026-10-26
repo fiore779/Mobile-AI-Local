@@ -146,6 +146,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     val models: StateFlow<List<ModelEntity>> =
         a.models.installed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val selectedModelId: StateFlow<String?> = a.selectedModelId
+    /** プロンプト処理(prefill)の進捗の割合。処理中でなければ null。端末内モデルだけ。 */
+    val prefillPercent: StateFlow<Int?> get() = a.localEngine.prefillPercent
     val modelLoading: StateFlow<Float?> = a.modelLoading
     /** モデルを読み込めなかった理由(選び直すと消える)。 */
     val modelError: StateFlow<String?> = a.modelError
@@ -277,7 +279,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val originText = if (cloud) "cloud" else "local"
         val selection = a.selectedModel.value
         val integrationId = (selection as? ModelSelection.Cloud)?.ref?.integrationId
-        job = viewModelScope.launch {
+        // 送信を受け付けた時点で「生成中」にする(停止ボタンをすぐ出し、二重の送信も防ぐ)。
+        // 準備の途中(同意の取り消し、DB の失敗など)で戻ったときは、完了時に元へ戻す。
+        var ownsGenerating = false // true になったら、生成の finally が generating を戻す
+        _state.value = _state.value.copy(generating = true)
+        val started = viewModelScope.launch {
             val self = coroutineContext.job
             // 同意が取り消されていたら送らない(状態もDBも触らない)
             if (cloud && !a.cloudSendAllowed()) {
@@ -365,6 +371,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     // 監視が使えない端末では、停止しないだけ
                 }
             }
+            ownsGenerating = true
             var completed = false
             var sb = StringBuilder()
             var curAid = aid
@@ -483,6 +490,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         }
+        job = started
+        started.invokeOnCompletion { if (!ownsGenerating) _state.value = _state.value.copy(generating = false) }
         return true
     }
 

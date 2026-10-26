@@ -1,6 +1,10 @@
 package com.mobileailocal.domain
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+private val NO_PREFILL: StateFlow<Int?> = MutableStateFlow(null)
 
 enum class Role { System, User, Assistant }
 
@@ -21,6 +25,9 @@ data class GenerationParams(
 /** 推論エンジンの境界。ローカル(llama.cpp)・外部API・テスト用を差し替えられる。 */
 interface InferenceEngine {
     val isLoaded: Boolean
+
+    /** プロンプト処理(prefill)の進捗の割合(0〜99)。処理中でなければ null。端末内モデルだけが出す。 */
+    val prefillPercent: StateFlow<Int?> get() = NO_PREFILL
 
     /** モデルを読み込む。進捗は 0f..1f で通知する。 */
     suspend fun load(modelPath: String, params: GenerationParams, onProgress: (Float) -> Unit = {})

@@ -340,4 +340,5 @@
     <string name="workspace_delete_all_body">All files in the work folder will be deleted. This cannot be undone.</string>
     <string name="workspace_export_done">Exported.</string>
     <string name="workspace_export_failed">Could not export the file.</string>
+    <string name="chat_prefill_progress">Processing prompt: %1$d%%</string>
 </resources>

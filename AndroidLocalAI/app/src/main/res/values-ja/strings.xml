@@ -340,4 +340,5 @@
     <string name="workspace_delete_all_body">作業フォルダのファイルをすべて削除します。元に戻せません。</string>
     <string name="workspace_export_done">書き出しました。</string>
     <string name="workspace_export_failed">書き出せませんでした。</string>
+    <string name="chat_prefill_progress">プロンプトを処理中: %1$d%%</string>
 </resources>

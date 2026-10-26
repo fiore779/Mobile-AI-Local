@@ -340,4 +340,5 @@
     <string name="workspace_delete_all_body">将删除工作文件夹中的所有文件。此操作无法撤销。</string>
     <string name="workspace_export_done">已导出。</string>
     <string name="workspace_export_failed">无法导出文件。</string>
+    <string name="chat_prefill_progress">正在处理提示词:%1$d%%</string>
 </resources>
